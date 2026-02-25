@@ -273,17 +273,19 @@ function drawStatusBar(buf: CellBuffer, game: Game, layout: ScreenLayout): void 
 }
 
 function drawOverlay(buf: CellBuffer, layout: ScreenLayout, title: string, titleColor: string, subtitle: string): void {
-	const { gameGrid } = layout;
+	const { gameGrid, header } = layout;
 
-	// Center the overlay on the game grid
+	// Center overlay on the full content area (header width), not just the game grid
 	const centerY = gameGrid.y + Math.floor(gameGrid.height / 2);
-	const centerX = gameGrid.x + Math.floor(gameGrid.width / 2);
+	const centerX = header.x + Math.floor(header.width / 2);
+	const bandLeft = header.x;
+	const bandRight = header.x + header.width;
 
-	// Dark background band across the grid
+	// Dark background band across the content area
 	for (let dy = -2; dy <= 2; dy++) {
 		const y = centerY + dy;
 		if (y < gameGrid.y || y >= gameGrid.y + gameGrid.height) continue;
-		for (let x = gameGrid.x; x < gameGrid.x + gameGrid.width; x++) {
+		for (let x = bandLeft; x < bandRight; x++) {
 			setCell(buf, x, y, 0, colors.uiText, palette.black);
 		}
 	}
