@@ -11,6 +11,7 @@ import type { CellBuffer } from './grid-renderer.js';
 import { createCellBuffer, setCell, writeText, fillRect, drawChrome } from './grid-renderer.js';
 import { colors, palette } from './colors.js';
 import { getPositionOnPath } from '$lib/engine/path-manager.js';
+import { getTutorialHighlight } from '$lib/engine/tutorial.js';
 import { getEnemyStats } from '$lib/engine/enemy-stats.js';
 import { getTowerStats } from '$lib/engine/tower-stats.js';
 import { GAME_MODES, GAME_PHASES } from '$lib/types/game.js';
@@ -59,12 +60,21 @@ export function renderGame(game: Game, layout: ScreenLayout): CellBuffer {
 	drawChrome(buf, layout);
 	drawHeader(buf, game, layout);
 	drawTerrain(buf, game, layout);
+	drawTutorialHighlight(buf, game, layout);
 	drawTowers(buf, game, layout);
 	drawEnemies(buf, game, layout);
 	drawCursor(buf, game, layout);
 	drawBuildMenu(buf, game, layout);
 	drawSidebar(buf, game, layout);
 	drawStatusBar(buf, game, layout);
+
+	// Overlay for terminal game states
+	if (game.state.phase === GAME_PHASES.gameOver) {
+		drawOverlay(buf, layout, 'GAME OVER', colors.health, 'Press Enter to return to menu');
+	} else if (game.state.phase === GAME_PHASES.stageComplete) {
+		drawOverlay(buf, layout, 'STAGE COMPLETE!', colors.modeNormal,
+			`Keystrokes: ${game.state.keystrokeCount} — Press Enter`);
+	}
 
 	return buf;
 }
@@ -100,6 +110,21 @@ function drawTerrain(buf: CellBuffer, game: Game, layout: ScreenLayout): void {
 			const display = TERRAIN_DISPLAY[cellType];
 			setCell(buf, gameGrid.x + x, gameGrid.y + y, display.char, display.fg, display.bg);
 		}
+	}
+}
+
+function drawTutorialHighlight(buf: CellBuffer, game: Game, layout: ScreenLayout): void {
+	const highlight = getTutorialHighlight(game.tutorial);
+	if (!highlight) return;
+
+	const { gameGrid } = layout;
+	const hx = gameGrid.x + highlight.x;
+	const hy = gameGrid.y + highlight.y;
+	if (hx >= 0 && hx < buf.width && hy >= 0 && hy < buf.height) {
+		const idx = hy * buf.width + hx;
+		const cell = buf.cells[idx];
+		cell.bg = palette.darkYellow;
+		cell.fg = palette.white;
 	}
 }
 
@@ -243,4 +268,29 @@ function drawStatusBar(buf: CellBuffer, game: Game, layout: ScreenLayout): void 
 	const posText = `${game.state.cursor.x},${game.state.cursor.y}`;
 	const posX = statusBar.x + statusBar.width - posText.length - 1;
 	writeText(buf, posX, statusBar.y, posText, colors.uiText, bg);
+}
+
+function drawOverlay(buf: CellBuffer, layout: ScreenLayout, title: string, titleColor: string, subtitle: string): void {
+	const { gameGrid } = layout;
+
+	// Center the overlay on the game grid
+	const centerY = gameGrid.y + Math.floor(gameGrid.height / 2);
+	const centerX = gameGrid.x + Math.floor(gameGrid.width / 2);
+
+	// Dark background band across the grid
+	for (let dy = -2; dy <= 2; dy++) {
+		const y = centerY + dy;
+		if (y < gameGrid.y || y >= gameGrid.y + gameGrid.height) continue;
+		for (let x = gameGrid.x; x < gameGrid.x + gameGrid.width; x++) {
+			setCell(buf, x, y, 0, colors.uiText, palette.black);
+		}
+	}
+
+	// Title
+	const titleX = centerX - Math.floor(title.length / 2);
+	writeText(buf, titleX, centerY - 1, title, titleColor, palette.black);
+
+	// Subtitle
+	const subX = centerX - Math.floor(subtitle.length / 2);
+	writeText(buf, subX, centerY + 1, subtitle, colors.uiText, palette.black);
 }

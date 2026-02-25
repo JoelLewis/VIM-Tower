@@ -59,9 +59,12 @@ export function updateEnemies(mgr: EnemyManager, dt: number): UpdateResult {
 	for (const enemy of mgr.enemies) {
 		if (!enemy.alive) continue;
 
-		// Tick slow timer
+		// Tick slow timer — restore speed when debuff expires
 		if (enemy.slowTimer > 0) {
 			enemy.slowTimer = Math.max(0, enemy.slowTimer - dt);
+			if (enemy.slowTimer <= 0) {
+				enemy.speed = getEnemyStats(enemy.type).speed;
+			}
 		}
 
 		// Advance along path

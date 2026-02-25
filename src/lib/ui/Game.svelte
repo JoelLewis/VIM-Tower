@@ -7,8 +7,18 @@
 	import { loadTileset } from '$lib/renderer/tileset.js';
 	import { renderGame } from '$lib/renderer/game-renderer.js';
 	import { renderBuffer } from '$lib/renderer/grid-renderer.js';
+	import { GAME_PHASES } from '$lib/types/game.js';
 
 	export let stageConfig: StageConfig;
+
+	const MOUSE_HINTS = [
+		'This is VIM — use h/j/k/l to move!',
+		'Try pressing i to enter INSERT mode.',
+		'Use :w to start the wave.',
+		'Mouse not supported — embrace the keyboard!',
+		'The cursor is your friend. h=left j=down k=up l=right',
+		'Click? In MY terminal? Use the keyboard!'
+	];
 
 	let canvasEl: HTMLCanvasElement;
 
@@ -24,13 +34,30 @@
 			const cm = createCanvasManager(canvasEl, width, height);
 			const game = createGame(stageConfig);
 
+			let mouseHintIndex = 0;
+
 			// Keyboard handler
 			function onKeyDown(e: KeyboardEvent) {
 				// Prevent browser defaults for game keys
 				if (['Tab', 'Escape', ':', '/'].includes(e.key) || e.key.startsWith('Arrow')) {
 					e.preventDefault();
 				}
+
+				// On game over or stage complete, Enter returns to menu
+				if (game.state.phase === GAME_PHASES.gameOver || game.state.phase === GAME_PHASES.stageComplete) {
+					if (e.key === 'Enter' || e.key === 'Escape') {
+						window.location.href = '/';
+						return;
+					}
+				}
+
 				handleKeyPress(game, e.key);
+			}
+
+			// Mouse click handler — show VIM hints
+			function onClick() {
+				game.state.message = MOUSE_HINTS[mouseHintIndex % MOUSE_HINTS.length];
+				mouseHintIndex++;
 			}
 
 			// Visibility change handler — pause when tab is hidden
@@ -60,6 +87,7 @@
 			}
 
 			window.addEventListener('keydown', onKeyDown);
+			canvasEl.addEventListener('click', onClick);
 			document.addEventListener('visibilitychange', onVisibilityChange);
 			lastTime = performance.now();
 			rafId = requestAnimationFrame(tick);
@@ -67,6 +95,7 @@
 			return () => {
 				cancelAnimationFrame(rafId);
 				window.removeEventListener('keydown', onKeyDown);
+				canvasEl.removeEventListener('click', onClick);
 				document.removeEventListener('visibilitychange', onVisibilityChange);
 				cm.destroy();
 			};
