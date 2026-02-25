@@ -6,3 +6,7 @@ build/
 !.env.example
 .DS_Store
 *.Zone.Identifier
+
+# Playwright screenshots
+*.png
+!static/**/*.png

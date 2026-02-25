@@ -43,6 +43,12 @@ All game rendering happens on a single `<canvas>`. SvelteKit provides routing an
 - `pnpm check` — Svelte type checking
 - `npx wrangler deploy` — Deploy to Cloudflare Pages
 
+## Gotchas
+
+- **SPA routing:** The `/play` route uses query params (`?stage=1`). It requires `prerender = false` in `+page.ts` and `fallback: '200.html'` in the static adapter config.
+- **Layout minimum width:** `screen-layout.ts` enforces `MIN_CONTENT_COLS=32` so the header/build menu have enough space even on small grids (Stage 1 is only 10 cols wide).
+- **Svelte navigation:** Use `window.location.href` instead of `goto()` to avoid the `svelte/no-navigation-without-resolve` lint rule (simpler for a static site).
+
 ## Design References
 
 - `vim-tower-defense-design-doc.md` — Full game design (modes, towers, enemies, stages, UI layout)
