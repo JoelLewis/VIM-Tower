@@ -52,13 +52,20 @@ const STATUS_BAR_HEIGHT = 1;
 // Border cells (box-drawing chars occupy 1 cell each)
 const BORDER = 1;
 
+// Minimum content columns to ensure header/build menu have enough space
+const MIN_CONTENT_COLS = 32;
+
 /**
  * Create a screen layout for a given game grid size.
  * The game grid size varies per stage (e.g., 10x7 for Stage 1, 20x14 for Stage 4).
+ * Small grids are padded to MIN_CONTENT_COLS so the header and build menu fit.
  */
 export function createScreenLayout(gameGridCols: number, gameGridRows: number): ScreenLayout {
-	// Content area = game grid + borders around it
-	const contentWidth = BORDER + gameGridCols + BORDER;
+	// Pad small grids so header/build menu have enough room
+	const contentCols = Math.max(gameGridCols, MIN_CONTENT_COLS);
+
+	// Content area = padded grid area + borders around it
+	const contentWidth = BORDER + contentCols + BORDER;
 	const contentHeight = BORDER + HEADER_HEIGHT + BORDER + gameGridRows + BORDER + BUILD_MENU_HEIGHT + BORDER;
 
 	// Sidebar sits to the right of the content area
@@ -70,7 +77,7 @@ export function createScreenLayout(gameGridCols: number, gameGridRows: number): 
 	const header: CellRect = {
 		x: BORDER,
 		y: BORDER,
-		width: gameGridCols,
+		width: contentCols,
 		height: HEADER_HEIGHT
 	};
 
@@ -91,7 +98,7 @@ export function createScreenLayout(gameGridCols: number, gameGridRows: number): 
 	const buildMenu: CellRect = {
 		x: BORDER,
 		y: BORDER + HEADER_HEIGHT + BORDER + gameGridRows + BORDER,
-		width: gameGridCols,
+		width: contentCols,
 		height: BUILD_MENU_HEIGHT
 	};
 

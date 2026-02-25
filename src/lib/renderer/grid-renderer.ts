@@ -164,7 +164,7 @@ export function drawChrome(buf: CellBuffer, layout: ScreenLayout): void {
 	const { header, gameGrid, buildMenu, sidebar } = layout;
 
 	// Outer box around the left content area (header + grid + build menu)
-	const contentWidth = gameGrid.width + 2; // +2 for left/right borders
+	const contentWidth = sidebar.x; // content area ends where sidebar begins
 	const contentHeight = 1 + header.height + 1 + gameGrid.height + 1 + buildMenu.height + 1;
 	drawBox(buf, 0, 0, contentWidth, contentHeight, fg, bg);
 

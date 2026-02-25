@@ -194,11 +194,12 @@ function drawBuildMenu(buf: CellBuffer, game: Game, layout: ScreenLayout): void 
 	let x = buildMenu.x;
 	for (const t of towers) {
 		const stats = getTowerStats(t.type);
+		const char = String.fromCharCode(TOWER_CHARS[t.type]);
 		const color = TOWER_COLORS[t.type];
 		const highlight = isInsert && game.state.selectedTowerType === t.type;
 		const fgColor = highlight ? palette.white : color;
 		const bgColor = highlight ? color : bg;
-		const text = `${t.key}:${t.name}(${stats.cost}g) `;
+		const text = `${t.key}:${char}${stats.cost}g `;
 		writeText(buf, x, buildMenu.y, text, fgColor, bgColor);
 		x += text.length;
 	}
