@@ -32,6 +32,7 @@ export default [
 		},
 		rules: {
 			...tseslint.configs.recommended.rules,
+			'no-undef': 'off', // TypeScript handles this; ESLint lacks DOM type awareness
 			'no-unused-vars': 'off',
 			'@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }]
 		}
