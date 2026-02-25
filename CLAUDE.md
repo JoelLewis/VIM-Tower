@@ -43,6 +43,17 @@ All game rendering happens on a single `<canvas>`. SvelteKit provides routing an
 - `pnpm check` — Svelte type checking
 - `npx wrangler deploy` — Deploy to Cloudflare Pages
 
+## Stage Balance (MVP Playtested)
+
+All 4 stages completable with 10/10 lives. Balance is slightly easy — appropriate for an educational MVP.
+
+| Stage | Grid | Waves | Towers | Par Keys | Notes |
+|-------|------|-------|--------|----------|-------|
+| 1 | 10x7 | 3 | Arrow | 30 | Straight path, tutorial |
+| 2 | 14x10 | 4 | Arrow, Cannon | 50 | L-shaped path |
+| 3 | 18x10 | 5 | Arrow, Cannon, Frost | 70 | Serpentine path |
+| 4 | 20x14 | 6 | All 4 | 100 | Vertical zigzag, tanks |
+
 ## Gotchas
 
 - **SPA routing:** The `/play` route uses query params (`?stage=1`). It requires `prerender = false` in `+page.ts` and `fallback: '200.html'` in the static adapter config.
