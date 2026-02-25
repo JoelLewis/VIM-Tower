@@ -1,121 +1,171 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { loadTileset } from '$lib/renderer/tileset.js';
-	import { createScreenLayout, getScreenPixelSize } from '$lib/renderer/screen-layout.js';
+	import type { Tileset } from '$lib/renderer/tileset.js';
 	import { createCanvasManager } from '$lib/renderer/canvas-manager.js';
 	import {
 		createCellBuffer,
-		drawChrome,
 		writeText,
-		setCell,
 		fillRect,
-		renderBuffer
+		renderBuffer,
+		drawBox
 	} from '$lib/renderer/grid-renderer.js';
+	import type { CellBuffer } from '$lib/renderer/grid-renderer.js';
 	import { colors, palette } from '$lib/renderer/colors.js';
+	import { ALL_STAGES } from '$lib/stages/stage-data.js';
+	import { loadProgress } from '$lib/stages/progression.js';
+	import type { ProgressData } from '$lib/stages/progression.js';
 
 	let canvas: HTMLCanvasElement;
 
+	const MENU_COLS = 50;
+	const MENU_ROWS = 30;
+	const GLYPH_SIZE = 16;
+
 	onMount(() => {
-		initDemo();
-	});
+		let cleanup: (() => void) | undefined;
 
-	async function initDemo() {
-		const tileset = await loadTileset('/fonts/cp437.png');
-
-		// Stage 1 grid size for demo
-		const layout = createScreenLayout(20, 14);
-		const screenSize = getScreenPixelSize(layout);
-
-		const manager = createCanvasManager(canvas, screenSize.width, screenSize.height);
-		const buf = createCellBuffer(layout.totalCols, layout.totalRows);
-
-		// Draw the chrome (box borders)
-		drawChrome(buf, layout);
-
-		// Header content (truncate to fit within header width)
-		const headerLeft = ':wq!  Stage 1';
-		const goldText = 'Gold: 200';
-		writeText(buf, layout.header.x, layout.header.y, headerLeft, colors.uiTextBright, colors.uiBackground);
-		writeText(buf, layout.header.x + layout.header.width - goldText.length, layout.header.y, goldText, colors.gold, colors.uiBackground);
-
-		// Fill game grid with dots (empty terrain)
-		fillRect(buf, layout.gameGrid, '.'.charCodeAt(0), colors.uiTextDim, colors.terrainEmpty);
-
-		// Draw a sample path (horizontal line across the middle)
-		const pathRow = layout.gameGrid.y + Math.floor(layout.gameGrid.height / 2);
-		for (let col = 0; col < layout.gameGrid.width; col++) {
-			const pathChar = 176; // ░ shade block for path
-			setCell(buf, layout.gameGrid.x + col, pathRow, pathChar, colors.terrainPath, colors.terrainEmpty);
-		}
-
-		// Place some demo towers
-		setCell(buf, layout.gameGrid.x + 5, pathRow - 1, '>'.charCodeAt(0), colors.towerArrow, colors.terrainEmpty);
-		setCell(buf, layout.gameGrid.x + 10, pathRow - 2, 'O'.charCodeAt(0), colors.towerCannon, colors.terrainEmpty);
-		setCell(buf, layout.gameGrid.x + 14, pathRow + 1, '*'.charCodeAt(0), colors.towerFrost, colors.terrainEmpty);
-		setCell(buf, layout.gameGrid.x + 18, pathRow - 1, '~'.charCodeAt(0), colors.towerLightning, colors.terrainEmpty);
-
-		// Place a demo enemy on the path
-		setCell(buf, layout.gameGrid.x + 3, pathRow, 'W'.charCodeAt(0), colors.enemyWalker, colors.terrainEmpty);
-
-		// Cursor highlight
-		const cursorX = layout.gameGrid.x + 8;
-		const cursorY = pathRow - 1;
-		setCell(buf, cursorX, cursorY, ' '.charCodeAt(0), colors.cursorNormal, colors.cursorNormal);
-
-		// Sidebar content (below header divider at y=2)
-		const sideX = layout.sidebar.x + 1;
-		// Sidebar title in the header row
-		writeText(buf, sideX, layout.header.y, 'COMMANDS', colors.uiTextBright, colors.uiBackground);
-		let sideY = layout.header.y + layout.header.height + 2;
-		writeText(buf, sideX, sideY, '-- NORMAL --', colors.modeNormal, colors.uiBackground);
-		sideY += 1;
-		writeText(buf, sideX, sideY, 'h/j/k/l  move', colors.uiText, colors.uiBackground);
-		sideY += 1;
-		writeText(buf, sideX, sideY, 'w/b      jump tower', colors.uiText, colors.uiBackground);
-		sideY += 1;
-		writeText(buf, sideX, sideY, 'i        insert mode', colors.uiText, colors.uiBackground);
-		sideY += 1;
-		writeText(buf, sideX, sideY, 'x        quick sell', colors.uiText, colors.uiBackground);
-		sideY += 1;
-		writeText(buf, sideX, sideY, ':        command mode', colors.uiText, colors.uiBackground);
-		sideY += 2;
-		writeText(buf, sideX, sideY, '-- INSERT --', colors.modeInsert, colors.uiBackground);
-		sideY += 1;
-		writeText(buf, sideX, sideY, '1  > Arrow    50g', colors.towerArrow, colors.uiBackground);
-		sideY += 1;
-		writeText(buf, sideX, sideY, '2  O Cannon  100g', colors.towerCannon, colors.uiBackground);
-		sideY += 1;
-		writeText(buf, sideX, sideY, '3  * Frost    75g', colors.towerFrost, colors.uiBackground);
-		sideY += 1;
-		writeText(buf, sideX, sideY, '4  ~ Lightn  125g', colors.towerLightning, colors.uiBackground);
-
-		// Build menu
-		writeText(buf, layout.buildMenu.x, layout.buildMenu.y, '1:Arrow 2:Cannon 3:Frost 4:Lightning', colors.uiText, colors.uiBackground);
-
-		// Status bar — fill entire row with background first
-		fillRect(buf, layout.statusBar, ' '.charCodeAt(0), colors.uiText, palette.darkGray);
-		writeText(buf, layout.statusBar.x, layout.statusBar.y, ' -- NORMAL --', colors.modeNormal, palette.darkGray);
-		const posText = '8,6';
-		const posX = Math.floor(layout.statusBar.width / 2) - Math.floor(posText.length / 2);
-		writeText(buf, posX, layout.statusBar.y, posText, colors.uiTextBright, palette.darkGray);
-		const msgText = 'Welcome to VIM Tower Defense!';
-		writeText(buf, layout.statusBar.width - msgText.length - 1, layout.statusBar.y, msgText, colors.uiText, palette.darkGray);
-
-		// Render the buffer to canvas
-		renderBuffer(manager.ctx, tileset, buf);
+		init().then((c) => {
+			cleanup = c;
+		});
 
 		return () => {
-			manager.destroy();
+			if (cleanup) cleanup();
 		};
+	});
+
+	async function init() {
+		const tileset = await loadTileset('/fonts/cp437.png');
+		const cm = createCanvasManager(canvas, MENU_COLS * GLYPH_SIZE, MENU_ROWS * GLYPH_SIZE);
+		const progress = loadProgress();
+
+		let selectedIndex = 0;
+
+		function render() {
+			const buf = createCellBuffer(MENU_COLS, MENU_ROWS);
+			drawMenu(buf, tileset, progress, selectedIndex);
+			renderBuffer(cm.ctx, tileset, buf);
+		}
+
+		function onKeyDown(e: KeyboardEvent) {
+			e.preventDefault();
+
+			switch (e.key) {
+				case 'j':
+				case 'ArrowDown':
+					selectedIndex = Math.min(selectedIndex + 1, ALL_STAGES.length - 1);
+					break;
+				case 'k':
+				case 'ArrowUp':
+					selectedIndex = Math.max(selectedIndex - 1, 0);
+					break;
+				case 'Enter':
+				case 'l':
+				case 'ArrowRight': {
+					const stage = ALL_STAGES[selectedIndex];
+					if (stage.id <= progress.unlockedStages) {
+						window.location.href = `/play?stage=${stage.id}`;
+					}
+					break;
+				}
+			}
+			render();
+		}
+
+		window.addEventListener('keydown', onKeyDown);
+		render();
+
+		return () => {
+			window.removeEventListener('keydown', onKeyDown);
+			cm.destroy();
+		};
+	}
+
+	function drawMenu(buf: CellBuffer, _tileset: Tileset, progress: ProgressData, selectedIndex: number): void {
+		// Title
+		const title = [
+			' __        __   _ ',
+			' \\ \\      / __ | |',
+			'  \\ \\ /\\ / /  \\| |',
+			'   \\ V  V / |\\   |',
+			'    \\_/\\_/\\_| \\__|'
+		];
+
+		const titleStartY = 2;
+		for (let i = 0; i < title.length; i++) {
+			const x = Math.floor((MENU_COLS - title[i].length) / 2);
+			writeText(buf, x, titleStartY + i, title[i], colors.modeNormal, colors.uiBackground);
+		}
+
+		// Subtitle
+		const subtitle = 'Tower Defense';
+		writeText(buf, Math.floor((MENU_COLS - subtitle.length) / 2), titleStartY + title.length + 1, subtitle, colors.uiTextBright, colors.uiBackground);
+
+		const tagline = 'Learn VIM by defending your server';
+		writeText(buf, Math.floor((MENU_COLS - tagline.length) / 2), titleStartY + title.length + 3, tagline, colors.uiTextDim, colors.uiBackground);
+
+		// Stage select box
+		const boxX = 5;
+		const boxY = 14;
+		const boxW = MENU_COLS - 10;
+		const boxH = ALL_STAGES.length + 4;
+
+		drawBox(buf, boxX, boxY, boxW, boxH, colors.uiBorder, colors.uiBackground);
+		writeText(buf, boxX + 2, boxY, ' SELECT STAGE ', colors.uiTextBright, colors.uiBackground);
+
+		for (let i = 0; i < ALL_STAGES.length; i++) {
+			const stage = ALL_STAGES[i];
+			const locked = stage.id > progress.unlockedStages;
+			const isSelected = i === selectedIndex;
+
+			const y = boxY + 2 + i;
+			const x = boxX + 2;
+			const maxTextW = boxW - 4;
+
+			if (isSelected) {
+				// Highlight row
+				fillRect(buf, { x, y, width: maxTextW, height: 1 }, 0, colors.uiTextBright, palette.darkGray);
+			}
+
+			const fg = locked ? colors.uiTextDim : isSelected ? colors.uiTextBright : colors.uiText;
+			const bg = isSelected ? palette.darkGray : colors.uiBackground;
+
+			// Stage name
+			const name = locked ? `[LOCKED] Stage ${stage.id}` : stage.name;
+			writeText(buf, x, y, name, fg, bg);
+
+			// Score
+			if (!locked) {
+				const score = progress.scores[stage.id];
+				if (score) {
+					const ratingText = `[${score.rating}] ${score.bestKeystrokes} keys`;
+					writeText(buf, x + maxTextW - ratingText.length, y, ratingText, colors.gold, bg);
+				}
+			}
+		}
+
+		// Controls hint
+		const controlsY = boxY + boxH + 2;
+		writeText(buf, boxX + 2, controlsY, 'j/k', colors.modeNormal, colors.uiBackground);
+		writeText(buf, boxX + 6, controlsY, 'navigate', colors.uiText, colors.uiBackground);
+		writeText(buf, boxX + 18, controlsY, 'Enter', colors.modeNormal, colors.uiBackground);
+		writeText(buf, boxX + 24, controlsY, 'select', colors.uiText, colors.uiBackground);
+
+		// Version
+		writeText(buf, 1, MENU_ROWS - 1, 'v0.1.0 MVP', colors.uiTextDim, colors.uiBackground);
 	}
 </script>
 
-<div id="game-container">
-	<canvas bind:this={canvas} id="game-canvas"></canvas>
+<svelte:head>
+	<title>:wq! — VIM Tower Defense</title>
+</svelte:head>
+
+<div id="menu-container">
+	<canvas bind:this={canvas}></canvas>
 </div>
 
 <style>
-	#game-container {
+	#menu-container {
 		width: 100%;
 		height: 100vh;
 		display: flex;
@@ -124,7 +174,7 @@
 		background: #000;
 	}
 
-	#game-canvas {
+	canvas {
 		image-rendering: pixelated;
 		image-rendering: crisp-edges;
 	}

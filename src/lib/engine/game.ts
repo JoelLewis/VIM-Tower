@@ -20,6 +20,9 @@ import { updateCombat } from './combat-manager.js';
 import type { Point } from './path-manager.js';
 import { expandWaypoints } from './path-manager.js';
 import { getEnemyStats } from './enemy-stats.js';
+import type { TutorialManager } from './tutorial.js';
+import { createTutorial, checkTutorialProgress } from './tutorial.js';
+import type { TutorialStep } from '$lib/stages/stage-data.js';
 
 export type StageConfig = {
 	readonly name: string;
@@ -28,6 +31,8 @@ export type StageConfig = {
 	readonly waves: WaveDefinition[];
 	readonly startingGold: number;
 	readonly startingLives: number;
+	readonly tutorialSteps?: TutorialStep[] | null;
+	readonly introText?: string | null;
 };
 
 export type Game = {
@@ -36,12 +41,16 @@ export type Game = {
 	enemies: EnemyManager;
 	waves: WaveManager;
 	parser: VimParser;
+	tutorial: TutorialManager;
 	stageConfig: StageConfig;
 };
 
 export function createGame(config: StageConfig): Game {
 	const path = expandWaypoints(config.waypoints);
 	const grid = createGrid(config.gridLayout);
+
+	const tutorial = createTutorial(config.tutorialSteps ?? null);
+	const introMessage = config.introText ?? (tutorial.active ? tutorial.message : '');
 
 	const state: GameState = {
 		mode: GAME_MODES.normal,
@@ -54,7 +63,7 @@ export function createGame(config: StageConfig): Game {
 		currentStage: 1,
 		keystrokeCount: 0,
 		commandBuffer: '',
-		message: '',
+		message: introMessage,
 		selectedTowerType: 'arrow'
 	};
 
@@ -64,6 +73,7 @@ export function createGame(config: StageConfig): Game {
 		enemies: createEnemyManager(path),
 		waves: createWaveManager(config.waves),
 		parser: createVimParser(),
+		tutorial,
 		stageConfig: config
 	};
 }
@@ -81,11 +91,20 @@ export function handleKeyPress(game: Game, key: string): string {
 
 	if (!command) return game.state.message;
 
+	// Advance tutorial if active
+	if (game.tutorial.active) {
+		checkTutorialProgress(game.tutorial, command);
+		if (game.tutorial.message) {
+			game.state.message = game.tutorial.message;
+		}
+	}
+
 	// Capture phase before command execution
 	const phaseBefore = game.state.phase;
 
 	const message = executeCommand(command, game.state, game.grid);
-	game.state.message = message;
+	// Tutorial message takes priority over command message
+	game.state.message = game.tutorial.active && game.tutorial.message ? game.tutorial.message : message;
 
 	// Sync mode back from state (executor may change it)
 	game.parser.mode = game.state.mode;
