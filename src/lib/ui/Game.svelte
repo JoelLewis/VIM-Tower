@@ -8,8 +8,11 @@
 	import { renderGame } from '$lib/renderer/game-renderer.js';
 	import { renderBuffer } from '$lib/renderer/grid-renderer.js';
 	import { GAME_PHASES } from '$lib/types/game.js';
+	import { loadProgress, saveProgress, completeStage } from '$lib/stages/progression.js';
 
 	export let stageConfig: StageConfig;
+	export let stageId: number = 1;
+	export let parKeystrokes: number = 30;
 
 	const MOUSE_HINTS = [
 		'This is VIM — use h/j/k/l to move!',
@@ -46,6 +49,11 @@
 				// On game over or stage complete, Enter returns to menu
 				if (game.state.phase === GAME_PHASES.gameOver || game.state.phase === GAME_PHASES.stageComplete) {
 					if (e.key === 'Enter' || e.key === 'Escape') {
+						if (game.state.phase === GAME_PHASES.stageComplete) {
+							const progress = loadProgress();
+							const updated = completeStage(progress, stageId, game.state.keystrokeCount, parKeystrokes);
+							saveProgress(updated);
+						}
 						window.location.href = '/';
 						return;
 					}

@@ -184,12 +184,13 @@ function drawBuildMenu(buf: CellBuffer, game: Game, layout: ScreenLayout): void 
 	const bg = colors.uiBackground;
 	const isInsert = game.state.mode === GAME_MODES.insert;
 
-	const towers: { key: string; name: string; type: TowerType }[] = [
-		{ key: '1', name: 'Arrow', type: 'arrow' },
-		{ key: '2', name: 'Cannon', type: 'cannon' },
-		{ key: '3', name: 'Frost', type: 'frost' },
-		{ key: '4', name: 'Lnng', type: 'lightning' }
+	const allTowers: { key: string; type: TowerType }[] = [
+		{ key: '1', type: 'arrow' },
+		{ key: '2', type: 'cannon' },
+		{ key: '3', type: 'frost' },
+		{ key: '4', type: 'lightning' }
 	];
+	const towers = allTowers.filter((t) => game.state.availableTowers.includes(t.type));
 
 	let x = buildMenu.x;
 	for (const t of towers) {

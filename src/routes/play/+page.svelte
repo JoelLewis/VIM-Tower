@@ -12,4 +12,4 @@
 	<title>:wq! — {stage.name}</title>
 </svelte:head>
 
-<Game stageConfig={stage} />
+<Game stageConfig={stage} stageId={stage.id} parKeystrokes={stage.parKeystrokes} />

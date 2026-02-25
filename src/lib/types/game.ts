@@ -121,4 +121,5 @@ export type GameState = {
 	commandBuffer: string;
 	message: string;
 	selectedTowerType: TowerType;
+	availableTowers: readonly TowerType[];
 };

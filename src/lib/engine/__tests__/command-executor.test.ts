@@ -37,6 +37,7 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
 		commandBuffer: '',
 		message: '',
 		selectedTowerType: TOWER_TYPES.arrow,
+		availableTowers: [TOWER_TYPES.arrow, TOWER_TYPES.cannon, TOWER_TYPES.frost, TOWER_TYPES.lightning],
 		...overrides
 	};
 }
@@ -153,6 +154,14 @@ describe('Command Executor — Tower Placement', () => {
 		state.cursor = { x: 3, y: 2 }; // path cell
 		const msg = executeCommand({ type: 'place_tower', towerType: 'arrow' }, state, grid);
 		expect(msg).toContain('path');
+	});
+
+	it('rejects unavailable tower type', () => {
+		state.availableTowers = [TOWER_TYPES.arrow];
+		const msg = executeCommand({ type: 'place_tower', towerType: 'cannon' }, state, grid);
+		expect(getTower(grid, 3, 0)).toBeUndefined();
+		expect(state.gold).toBe(500); // unchanged
+		expect(msg).toContain('not available');
 	});
 });
 

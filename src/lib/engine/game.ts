@@ -5,7 +5,7 @@
  * The Game object holds all mutable subsystem state as a single source of truth.
  */
 
-import type { GameState, GamePhase, CellType } from '$lib/types/game.js';
+import type { GameState, GamePhase, CellType, TowerType } from '$lib/types/game.js';
 import { GAME_MODES, GAME_PHASES } from '$lib/types/game.js';
 import type { Grid } from './grid.js';
 import { createGrid } from './grid.js';
@@ -31,6 +31,7 @@ export type StageConfig = {
 	readonly waves: WaveDefinition[];
 	readonly startingGold: number;
 	readonly startingLives: number;
+	readonly availableTowers?: readonly TowerType[];
 	readonly tutorialSteps?: TutorialStep[] | null;
 	readonly introText?: string | null;
 };
@@ -64,7 +65,8 @@ export function createGame(config: StageConfig): Game {
 		keystrokeCount: 0,
 		commandBuffer: '',
 		message: introMessage,
-		selectedTowerType: 'arrow'
+		selectedTowerType: 'arrow',
+		availableTowers: config.availableTowers ?? ['arrow', 'cannon', 'frost', 'lightning']
 	};
 
 	return {

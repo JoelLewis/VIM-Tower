@@ -124,6 +124,9 @@ function executePlaceTower(
 	state: GameState,
 	grid: Grid
 ): string {
+	if (!state.availableTowers.includes(command.towerType)) {
+		return `E: ${command.towerType} tower not available on this stage`;
+	}
 	const cost = getTowerCost(command.towerType);
 	if (state.gold < cost) {
 		return `E: Not enough gold (need ${cost}g, have ${state.gold}g)`;
