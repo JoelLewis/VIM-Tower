@@ -17,12 +17,12 @@ const testPath = expandWaypoints([
 
 const testWaves = [
 	{
-		groups: [{ type: ENEMY_TYPES.walker as const, count: 3, spawnInterval: 0.5 }]
+		groups: [{ type: ENEMY_TYPES.walker, count: 3, spawnInterval: 0.5 }]
 	},
 	{
 		groups: [
-			{ type: ENEMY_TYPES.walker as const, count: 2, spawnInterval: 0.5 },
-			{ type: ENEMY_TYPES.runner as const, count: 1, spawnInterval: 0.5 }
+			{ type: ENEMY_TYPES.walker, count: 2, spawnInterval: 0.5 },
+			{ type: ENEMY_TYPES.runner, count: 1, spawnInterval: 0.5 }
 		]
 	}
 ];
