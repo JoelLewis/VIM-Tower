@@ -1,0 +1,2 @@
+# Run smoke tests before commit
+npm run test:e2e:smoke
