@@ -10,3 +10,9 @@ build/
 # Playwright screenshots
 *.png
 !static/**/*.png
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
