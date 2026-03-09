@@ -7,7 +7,8 @@
 	import { loadTileset } from '$lib/renderer/tileset.js';
 	import { renderGame } from '$lib/renderer/game-renderer.js';
 	import { renderBuffer } from '$lib/renderer/grid-renderer.js';
-	import { GAME_PHASES } from '$lib/types/game.js';
+	import { GAME_PHASES, GAME_MODES } from '$lib/types/game.js';
+	import type { GamePhase, GameMode } from '$lib/types/game.js';
 	import { loadProgress, saveProgress, completeStage } from '$lib/stages/progression.js';
 
 	export let stageConfig: StageConfig;
@@ -24,6 +25,15 @@
 	];
 
 	let canvasEl: HTMLCanvasElement;
+
+	// Reactive state for E2E test data attributes
+	let gamePhase: GamePhase = GAME_PHASES.planning;
+	let gameMode: GameMode = GAME_MODES.normal;
+	let gameGold: number = 0;
+	let gameLives: number = 0;
+	let gameWave: number = 0;
+	let gameTotalWaves: number = 0;
+	let gameKeystrokes: number = 0;
 
 	onMount(() => {
 		let rafId: number;
@@ -78,6 +88,17 @@
 				}
 			}
 
+			// Sync state from game to reactive variables for E2E testing
+			function syncState() {
+				gamePhase = game.state.phase;
+				gameMode = game.state.mode;
+				gameGold = game.state.gold;
+				gameLives = game.state.lives;
+				gameWave = game.state.currentWave;
+				gameTotalWaves = game.state.totalWaves;
+				gameKeystrokes = game.state.keystrokeCount;
+			}
+
 			// Game loop
 			function tick(now: number) {
 				if (!paused) {
@@ -86,6 +107,9 @@
 
 					updateGame(game, dt);
 				}
+
+				// Sync state for E2E test data attributes
+				syncState();
 
 				// Render every frame regardless of pause (for UI responsiveness)
 				const buf = renderGame(game, layout);
@@ -121,7 +145,17 @@
 	});
 </script>
 
-<div class="game-container">
+<div
+	class="game-container"
+	data-testid="game-container"
+	data-phase={gamePhase}
+	data-mode={gameMode}
+	data-gold={gameGold}
+	data-lives={gameLives}
+	data-wave={gameWave}
+	data-total-waves={gameTotalWaves}
+	data-keystrokes={gameKeystrokes}
+>
 	<canvas bind:this={canvasEl}></canvas>
 </div>
 
