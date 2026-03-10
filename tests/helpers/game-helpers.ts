@@ -464,11 +464,24 @@ export async function navigateToStage(page: Page, stageNumber: number): Promise<
 	await pressKey(page, 'Enter');
 }
 
+export interface StartStageOptions {
+	testMode?: boolean;
+}
+
 /**
  * Start a stage directly via URL.
+ *
+ * @param testMode - When true, enables 10x game speed for faster E2E tests.
+ *   This reduces test timeouts from 90-120s to under 10s.
  */
-export async function startStage(page: Page, stageNumber: number): Promise<void> {
-	await page.goto(`/play?stage=${stageNumber}`);
+export async function startStage(
+	page: Page,
+	stageNumber: number,
+	options: StartStageOptions = {}
+): Promise<void> {
+	const { testMode = false } = options;
+	const url = testMode ? `/play?stage=${stageNumber}&testMode=true` : `/play?stage=${stageNumber}`;
+	await page.goto(url);
 	await waitForGameReady(page);
 }
 
@@ -568,6 +581,85 @@ export async function setProgressData(page: Page, data: ProgressData): Promise<v
 	await page.evaluate((progressData) => {
 		localStorage.setItem('vim-tower-progress', JSON.stringify(progressData));
 	}, data);
+}
+
+// ─── Game Over Helpers ───────────────────────────────────────
+
+/**
+ * Keep starting waves until game over is reached.
+ * Useful for tests that need to deplete all lives.
+ *
+ * This function:
+ * 1. Starts a wave when in planning phase
+ * 2. Waits for combat to complete
+ * 3. Repeats until game_over phase is reached
+ *
+ * TIMING: With testMode (10x speed), typically completes in ~5-10s.
+ * Without testMode, can take 90+ seconds.
+ */
+export async function runUntilGameOver(
+	page: Page,
+	options: { timeout?: number } = {}
+): Promise<void> {
+	const { timeout = 30000 } = options;
+	const startTime = Date.now();
+
+	while (Date.now() - startTime < timeout) {
+		const state = await getGameState(page);
+		if (state?.phase === 'game_over') return;
+
+		// Start next wave if in planning phase
+		if (state?.phase === 'planning') {
+			await executeCommand(page, 'w');
+		}
+
+		// Brief wait for phase transitions
+		await page.waitForTimeout(100);
+	}
+
+	// Final check
+	const finalState = await getGameState(page);
+	if (finalState?.phase !== 'game_over') {
+		throw new Error(
+			`Timeout waiting for game_over. Current phase: ${finalState?.phase}, lives: ${finalState?.lives}`
+		);
+	}
+}
+
+/**
+ * Wait for a wave to complete and transition to the next state.
+ * Handles fast transitions in testMode where wave_complete may be missed.
+ *
+ * For non-final waves: waits for planning phase with incremented wave number
+ * For final wave: waits for stage_complete phase
+ *
+ * @param currentWave - The wave that was just started
+ * @param totalWaves - Total waves in the stage
+ */
+export async function waitForWaveComplete(
+	page: Page,
+	currentWave: number,
+	totalWaves: number,
+	options: WaitOptions = {}
+): Promise<void> {
+	const { timeout = 10000, pollInterval = DEFAULT_POLL_INTERVAL } = options;
+
+	if (currentWave >= totalWaves) {
+		// Final wave - wait for stage_complete
+		await waitForPhase(page, 'stage_complete', { timeout, pollInterval });
+	} else {
+		// Non-final wave - wait for planning phase with next wave number
+		await expect(async () => {
+			const state = await getGameState(page);
+			// Accept wave_complete or planning (may transition too fast to catch wave_complete)
+			const validPhase = state?.phase === 'planning' || state?.phase === 'wave_complete';
+			expect(validPhase).toBe(true);
+			// If in planning, verify we advanced to next wave
+			if (state?.phase === 'planning') {
+				expect(state?.wave).toBe(currentWave + 1);
+			}
+		}).toPass({ timeout, intervals: [pollInterval] });
+	}
 }
 
 // ─── Assertion Helpers ───────────────────────────────────────────

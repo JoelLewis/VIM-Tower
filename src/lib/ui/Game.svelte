@@ -14,6 +14,10 @@
 	export let stageConfig: StageConfig;
 	export let stageId: number = 1;
 	export let parKeystrokes: number = 30;
+	export let testMode: boolean = false;
+
+	// Test mode speed multiplier: 10x faster for E2E tests
+	const TEST_MODE_SPEED_MULTIPLIER = 10;
 
 	const MOUSE_HINTS = [
 		'This is VIM — use h/j/k/l to move!',
@@ -102,8 +106,13 @@
 			// Game loop
 			function tick(now: number) {
 				if (!paused) {
-					const dt = Math.min((now - lastTime) / 1000, 0.1); // cap at 100ms
+					let dt = Math.min((now - lastTime) / 1000, 0.1); // cap at 100ms
 					lastTime = now;
+
+					// Apply test mode speed multiplier for faster E2E tests
+					if (testMode) {
+						dt *= TEST_MODE_SPEED_MULTIPLIER;
+					}
 
 					updateGame(game, dt);
 				}
