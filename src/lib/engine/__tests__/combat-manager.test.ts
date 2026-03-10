@@ -127,6 +127,88 @@ describe('Combat Manager — Frost Tower (slow)', () => {
 	});
 });
 
+describe('Combat Manager — Debuff Stacking', () => {
+	it('multiple frost towers hitting same enemy refresh slow timer', () => {
+		const grid = createGrid(makeTestLayout());
+		// Place two frost towers in range of the path
+		placeTower(grid, 3, 1, TOWER_TYPES.frost);
+		placeTower(grid, 4, 1, TOWER_TYPES.frost);
+
+		const enemies = createEnemyManager(testPath);
+		const walker = spawnEnemy(enemies, ENEMY_TYPES.walker);
+		walker.pathIndex = 4; // Between both towers
+
+		// First tower hits
+		updateCombat(grid, enemies, 0.01);
+		expect(walker.slowTimer).toBeGreaterThan(0);
+
+		// Wait for second tower to fire (after its cooldown)
+		updateCombat(grid, enemies, 0.7);
+		// Slow timer should be refreshed (set to slowDuration again)
+		expect(walker.slowTimer).toBeGreaterThanOrEqual(1.0);
+		// Speed should still be reduced
+		expect(walker.speed).toBe(1.5 * 0.4); // walker base speed * frost slowFactor
+	});
+
+	it('slow effect uses base speed, not current slowed speed', () => {
+		const grid = createGrid(makeTestLayout());
+		placeTower(grid, 3, 1, TOWER_TYPES.frost);
+
+		const enemies = createEnemyManager(testPath);
+		const walker = spawnEnemy(enemies, ENEMY_TYPES.walker);
+		walker.pathIndex = 3;
+		const baseSpeed = walker.speed; // 1.5
+
+		// Apply slow
+		updateCombat(grid, enemies, 0.01);
+		const slowedSpeed = walker.speed;
+		expect(slowedSpeed).toBe(baseSpeed * 0.4);
+
+		// Fire again after cooldown - should not stack multiplicatively
+		updateCombat(grid, enemies, 0.8);
+		expect(walker.speed).toBe(baseSpeed * 0.4);
+		// Speed should NOT be: slowedSpeed * 0.4 (stacking)
+		expect(walker.speed).not.toBe(slowedSpeed * 0.4);
+	});
+
+	it('frost applies slow to multiple enemies in range', () => {
+		const grid = createGrid(makeTestLayout());
+		placeTower(grid, 4, 1, TOWER_TYPES.frost);
+
+		const enemies = createEnemyManager(testPath);
+		const e1 = spawnEnemy(enemies, ENEMY_TYPES.walker);
+		const e2 = spawnEnemy(enemies, ENEMY_TYPES.walker);
+		e1.pathIndex = 4;
+		e2.pathIndex = 5;
+
+		updateCombat(grid, enemies, 1.0);
+
+		// Both should be slowed
+		expect(e1.slowTimer).toBeGreaterThan(0);
+		expect(e2.slowTimer).toBeGreaterThan(0);
+		expect(e1.speed).toBe(1.5 * 0.4);
+		expect(e2.speed).toBe(1.5 * 0.4);
+	});
+
+	it('different enemy types have correct slowed speed', () => {
+		const grid = createGrid(makeTestLayout());
+		placeTower(grid, 4, 1, TOWER_TYPES.frost);
+
+		const enemies = createEnemyManager(testPath);
+		const walker = spawnEnemy(enemies, ENEMY_TYPES.walker);
+		const runner = spawnEnemy(enemies, ENEMY_TYPES.runner);
+		walker.pathIndex = 4;
+		runner.pathIndex = 5;
+
+		updateCombat(grid, enemies, 1.0);
+
+		// Walker base speed 1.5 * 0.4 = 0.6
+		expect(walker.speed).toBe(1.5 * 0.4);
+		// Runner base speed 3.0 * 0.4 = 1.2
+		expect(runner.speed).toBe(3.0 * 0.4);
+	});
+});
+
 describe('Combat Manager — Lightning Tower (chain)', () => {
 	it('lightning chains damage to multiple enemies', () => {
 		const grid = createGrid(makeTestLayout());

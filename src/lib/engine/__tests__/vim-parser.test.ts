@@ -420,3 +420,86 @@ describe('VIM Parser — Edge Cases', () => {
 		expect(cmd).toEqual({ type: 'execute_command', command: '' });
 	});
 });
+
+describe('VIM Parser — Count Prefix Edge Cases', () => {
+	let parser: ReturnType<typeof createVimParser>;
+
+	beforeEach(() => {
+		parser = createVimParser();
+	});
+
+	it('large multi-digit count (999) works correctly', () => {
+		press(parser, '9', '9', '9');
+		const cmd = processKey(parser, 'j');
+		expect(cmd).toEqual({ type: 'move_cursor', dx: 0, dy: 1, count: 999 });
+	});
+
+	it('count with leading 0 after first digit (e.g., 100)', () => {
+		press(parser, '1', '0', '0');
+		const cmd = processKey(parser, 'h');
+		expect(cmd).toEqual({ type: 'move_cursor', dx: -1, dy: 0, count: 100 });
+	});
+
+	it('count does not apply to non-motion commands (x)', () => {
+		press(parser, '5');
+		const cmd = processKey(parser, 'x');
+		// Count is consumed but x doesn't use it
+		expect(cmd).toEqual({ type: 'quick_sell_tower' });
+	});
+
+	it('count applies correctly after being consumed and reset', () => {
+		press(parser, '3', 'j');
+		press(parser, '7');
+		const cmd = processKey(parser, 'k');
+		expect(cmd).toEqual({ type: 'move_cursor', dx: 0, dy: -1, count: 7 });
+	});
+
+	it('count prefix with invalid key resets count', () => {
+		press(parser, '5', 'z'); // z is invalid
+		const cmd = processKey(parser, 'j');
+		// After invalid key consumed the count, next motion uses count 1
+		expect(cmd).toEqual({ type: 'move_cursor', dx: 0, dy: 1, count: 1 });
+	});
+
+	it('count prefix followed by mode switch (i) consumes count', () => {
+		press(parser, '3');
+		const cmd = processKey(parser, 'i');
+		// Count is consumed even though insert mode doesn't use it
+		expect(cmd).toEqual({ type: 'enter_insert_mode', variant: 'i' });
+		expect(getMode(parser)).toBe('insert');
+	});
+
+	it('single digit 1 count works', () => {
+		press(parser, '1');
+		const cmd = processKey(parser, 'l');
+		expect(cmd).toEqual({ type: 'move_cursor', dx: 1, dy: 0, count: 1 });
+	});
+
+	it('count with g motion (3gg still jumps to grid start)', () => {
+		press(parser, '3', 'g');
+		const cmd = processKey(parser, 'g');
+		expect(cmd).toEqual({ type: 'jump_grid_start' });
+	});
+
+	it('count does not carry across to command mode', () => {
+		press(parser, '5');
+		processKey(parser, ':');
+		expect(getMode(parser)).toBe('command');
+		processKey(parser, 'Escape');
+		// After returning to normal, count should be reset
+		const cmd = processKey(parser, 'j');
+		expect(cmd).toEqual({ type: 'move_cursor', dx: 0, dy: 1, count: 1 });
+	});
+
+	it('count with $ (jump row end) consumes count', () => {
+		press(parser, '5');
+		const cmd = processKey(parser, '$');
+		expect(cmd).toEqual({ type: 'jump_row_end' });
+	});
+
+	it('count with w (jump next tower) consumes count', () => {
+		press(parser, '3');
+		const cmd = processKey(parser, 'w');
+		expect(cmd).toEqual({ type: 'jump_next_tower' });
+	});
+});
