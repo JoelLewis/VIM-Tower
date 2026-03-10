@@ -4,6 +4,25 @@
  * Tests all VIM movement commands (h/j/k/l, w/b, 0/$, e, gg/G, count prefixes),
  * mode transitions (i/a/o/O, Esc), quick sell (x), and command mode
  * (:q, :q!, :wq, :help, :map) across different game phases.
+ *
+ * ## TIMING CONSIDERATIONS
+ *
+ * Most keybinding tests are FAST - they test immediate input response without
+ * waiting for game simulation. The exceptions are:
+ *
+ * 1. Combat-phase tests: Start a wave, so need combat timeout
+ * 2. Stage complete tests: Full 3-wave Stage 1 playthrough
+ *
+ * ### Timeout Strategy:
+ * - waitForMode(): 2000ms default - mode changes are instant
+ * - waitForPhase('combat'): 5000ms - immediate transition
+ * - waitForPhase('wave_complete'): 30000ms - for combat tests
+ * - waitForPhase('stage_complete'): 30000ms - for victory tests
+ *
+ * ### No Flakiness Expected:
+ * - Keybinding tests don't depend on game simulation
+ * - Mode transitions happen synchronously with key events
+ * - Only combat/progression tests have timing dependencies
  */
 
 import { test, expect } from '@playwright/test';
@@ -706,6 +725,8 @@ test.describe('VIM Keybindings', () => {
 	// ─── Keybindings During Combat Phase ─────────────────────────
 
 	test.describe('Keybindings During Combat Phase', () => {
+		// NOTE: These tests verify keybindings work during active combat
+		// They start a wave but don't wait for completion
 		test('should allow movement during combat', async ({ page }) => {
 			await startStage(page, 1);
 
@@ -718,6 +739,7 @@ test.describe('VIM Keybindings', () => {
 
 			// Start combat
 			await executeCommand(page, 'w');
+			// TIMING: Just need to reach combat phase, not complete it
 			await waitForPhase(page, 'combat', { timeout: 5000 });
 
 			// Movement should still work
@@ -779,6 +801,8 @@ test.describe('VIM Keybindings', () => {
 	// ─── Keybindings During Stage Complete ───────────────────────
 
 	test.describe('Keybindings During Stage Complete/Game Over', () => {
+		// NOTE: These tests complete full Stage 1 to reach stage_complete phase
+		// They are slower than pure keybinding tests but verify end-game input handling
 		test('should return to menu with Enter on stage complete', async ({ page }) => {
 			await startStage(page, 1);
 
@@ -795,12 +819,13 @@ test.describe('VIM Keybindings', () => {
 			await placeTower(page, 1);
 			await exitInsertMode(page);
 
-			// Complete all waves
+			// TIMING: Full Stage 1 playthrough (3 waves, ~30s each)
 			for (let wave = 1; wave <= 3; wave++) {
 				await executeCommand(page, 'w');
 				await waitForPhase(page, 'combat', { timeout: 5000 });
 
 				if (wave < 3) {
+					// TIMING: Stage 1 waves are quick with proper towers
 					await waitForPhase(page, 'wave_complete', { timeout: 30000 });
 					await waitForPhase(page, 'planning', { timeout: 5000 });
 				} else {

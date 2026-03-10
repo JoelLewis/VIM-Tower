@@ -5,6 +5,25 @@
  * - Tutorial step progression (cursor movement, insert mode, tower placement, :w command)
  * - Wave completion
  * - Victory with rating calculation
+ *
+ * ## TIMING CONSIDERATIONS
+ *
+ * Stage 1 is the shortest stage with only 3 waves and a straight horizontal path.
+ * Most tests here involve single-wave or few-wave combat, so timeouts are shorter
+ * than the full stage progression tests.
+ *
+ * ### Timeout Strategy:
+ * - waitForPhase('combat', { timeout: 5000 }): Immediate transition
+ * - waitForPhase('wave_complete', { timeout: 30000 }): Stage 1 waves are quick
+ *   - 3 walker enemies per wave
+ *   - Short horizontal path (~10 cells)
+ *   - With towers, waves complete in 15-25s
+ * - waitForPhase('stage_complete', { timeout: 30000 }): Final wave victory
+ *
+ * ### Flakiness Considerations:
+ * - Tutorial tests don't have combat, so no timing issues
+ * - Wave completion tests depend on tower placement effectiveness
+ * - Insufficient towers = test timeout (enemies not defeated fast enough)
  */
 
 import { test, expect } from '@playwright/test';
@@ -107,7 +126,7 @@ test.describe('Stage 1 Tutorial Playthrough', () => {
 			// Start wave with :w
 			await executeCommand(page, 'w');
 
-			// Wait for combat phase
+			// TIMING: Combat phase starts immediately after :w command is processed
 			await waitForPhase(page, 'combat', { timeout: 5000 });
 
 			const state = await getGameState(page);
@@ -139,8 +158,9 @@ test.describe('Stage 1 Tutorial Playthrough', () => {
 			await executeCommand(page, 'w');
 			await waitForPhase(page, 'combat', { timeout: 5000 });
 
-			// Wait for wave to complete (enemies defeated)
-			// Wave 1 has 3 walkers, should complete within ~20 seconds
+			// TIMING: Wave 1 spawns 3 walker enemies over ~10s
+			// With 3 arrow towers, enemies are defeated in ~15-25s total
+			// 30s timeout provides comfortable safety margin
 			await waitForPhase(page, 'wave_complete', { timeout: 30000 });
 
 			const state = await getGameState(page);
@@ -164,9 +184,10 @@ test.describe('Stage 1 Tutorial Playthrough', () => {
 			// Complete wave 1
 			await executeCommand(page, 'w');
 			await waitForPhase(page, 'combat', { timeout: 5000 });
+			// TIMING: Single wave completion
 			await waitForPhase(page, 'wave_complete', { timeout: 30000 });
 
-			// Should auto-transition to planning for wave 2
+			// TIMING: wave_complete -> planning transition is automatic and instant
 			await waitForPhase(page, 'planning', { timeout: 5000 });
 
 			const state = await getGameState(page);

@@ -5,6 +5,26 @@
  * basic keybinding works, and no console errors.
  *
  * These tests are designed to run quickly as a pre-commit check.
+ *
+ * ## TIMING CONSIDERATIONS
+ *
+ * Smoke tests are intentionally FAST and should complete in <30 seconds total.
+ * They verify critical paths without running combat simulation.
+ *
+ * ### Timeout Strategy:
+ * - waitForMenuReady(): Default 10s - app should load quickly
+ * - waitForGameReady(): Default 10s - game init should be quick
+ * - waitForMode(): 2000ms - mode transitions are instant
+ *
+ * ### Flakiness Prevention:
+ * - Serial mode prevents parallel worker state interference
+ * - No combat waits = no timing-dependent assertions
+ * - Console error capture is passive (doesn't add latency)
+ *
+ * ### Pre-commit Suitability:
+ * - Total runtime: <30s on typical hardware
+ * - No extended timeouts or wave simulations
+ * - Catches critical regressions without slowing dev workflow
  */
 
 import { test, expect } from '@playwright/test';

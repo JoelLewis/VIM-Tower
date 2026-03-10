@@ -3,6 +3,35 @@
  *
  * Utilities for waiting on game state transitions, extracting state from DOM,
  * simulating VIM key sequences, and verifying canvas rendering.
+ *
+ * ## TIMING CONFIGURATION
+ *
+ * This file defines the timing constants and wait utilities used across all E2E tests.
+ * Understanding these values is critical for debugging flaky tests.
+ *
+ * ### Default Timeouts:
+ * - DEFAULT_TIMEOUT = 10000ms (10s) - Base timeout for most wait operations
+ * - DEFAULT_POLL_INTERVAL = 100ms - How often to check for state changes
+ * - DEFAULT_KEY_DELAY = 50ms - Delay between key presses to avoid race conditions
+ *
+ * ### Wait Function Behavior:
+ * All wait functions use Playwright's expect().toPass() pattern which:
+ * 1. Runs the assertion immediately
+ * 2. If it fails, waits pollInterval (100ms) and retries
+ * 3. Continues until assertion passes or timeout is reached
+ *
+ * ### Recommended Timeouts by Use Case:
+ * - waitForPhase('combat'): 5000ms - immediate transition after :w command
+ * - waitForPhase('wave_complete'): 30000-45000ms - single wave combat
+ * - waitForPhase('game_over'): 90000ms - multiple waves, enemy traversal
+ * - waitForPhase('stage_complete'): 30000-120000ms - depends on stage difficulty
+ * - waitForMode(): 2000ms - mode transitions are synchronous with input
+ * - waitForMenuReady/waitForGameReady: 10000ms (default) - app initialization
+ *
+ * ### Flakiness Patterns:
+ * - Too short timeout: Test fails inconsistently, especially in CI
+ * - Too short key delay: Keys may be processed out of order
+ * - Missing wait: Test reads stale state before update completes
  */
 
 import { expect, type Page, type Locator } from '@playwright/test';
@@ -110,11 +139,39 @@ export interface WaitOptions {
 	pollInterval?: number;
 }
 
+/**
+ * Default timeout for wait operations (10 seconds).
+ * Sufficient for most state transitions (menu load, game init, mode changes).
+ *
+ * For combat-related waits, tests should override with longer timeouts:
+ * - Wave completion: 30000-45000ms
+ * - Game over: 90000ms
+ * - Stage 4 final wave: 120000ms
+ */
 const DEFAULT_TIMEOUT = 10000;
+
+/**
+ * How often to check for state changes (100ms).
+ * This value balances responsiveness vs CPU usage.
+ * Lower values make tests faster when state changes quickly,
+ * but increase CPU overhead from frequent polling.
+ */
 const DEFAULT_POLL_INTERVAL = 100;
 
 /**
  * Wait for game phase to transition to the expected phase.
+ *
+ * TIMING GUIDELINES:
+ * - 'combat': 5000ms - instant transition after :w command
+ * - 'wave_complete': 30000-60000ms - depends on tower effectiveness and enemy count
+ * - 'stage_complete': 30000-120000ms - final wave, depends on stage difficulty
+ * - 'game_over': 90000ms - requires enemies to traverse path and deplete lives
+ * - 'planning': 5000ms - auto-transition after wave_complete
+ *
+ * FLAKINESS NOTE: If this times out, check:
+ * 1. Are enough towers placed to defeat enemies?
+ * 2. Is the timeout appropriate for the stage/wave?
+ * 3. Is CI running slower than local dev machine?
  */
 export async function waitForPhase(
 	page: Page,
@@ -131,6 +188,11 @@ export async function waitForPhase(
 
 /**
  * Wait for game mode to transition to the expected mode.
+ *
+ * TIMING: Mode transitions are synchronous with key input.
+ * A 2000ms timeout is more than sufficient for any mode change.
+ * If this times out, the issue is likely the key not being received,
+ * not a slow transition.
  */
 export async function waitForMode(
 	page: Page,
@@ -187,6 +249,13 @@ export async function waitForGold(
 
 /**
  * Wait for lives to reach a specific value.
+ *
+ * TIMING: Lives decrease when enemies reach the exit.
+ * Time depends on enemy spawn rate and path length:
+ * - First life lost: 10-20s (first enemy traversal)
+ * - All lives lost: 60-90s (multiple enemies/waves)
+ *
+ * Use 45000ms for waiting on first life lost.
  */
 export async function waitForLives(
 	page: Page,
@@ -223,6 +292,19 @@ export interface KeyOptions {
 	delay?: number;
 }
 
+/**
+ * Default delay between key presses (50ms).
+ *
+ * This delay is CRITICAL for test reliability. It ensures:
+ * 1. The game loop processes each key before the next arrives
+ * 2. Mode transitions complete before subsequent keys
+ * 3. Count prefixes (e.g., "5j") are parsed correctly
+ *
+ * Reducing this value may cause flakiness in:
+ * - Count prefix commands (keys arrive before parser resets)
+ * - Mode transitions (Escape processed before insert mode fully exits)
+ * - Command mode input (:w parses incorrectly)
+ */
 const DEFAULT_KEY_DELAY = 50;
 
 /**

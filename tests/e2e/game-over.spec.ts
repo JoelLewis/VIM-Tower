@@ -6,6 +6,30 @@
  * - Game over screen display
  * - Score tracking without progression unlock
  * - Return to menu with Enter/Escape
+ *
+ * ## TIMING CONSIDERATIONS
+ *
+ * These tests involve waiting for enemies to traverse the entire path and deplete
+ * all player lives. This is inherently slow because:
+ * 1. Enemies spawn over time (wave spawn intervals)
+ * 2. Each enemy must walk the full path to the exit
+ * 3. Multiple enemies must reach the exit to drain all 10 lives
+ *
+ * ### Timeout Strategy:
+ * - test.setTimeout(90000-120000): Extended test timeout for full game-over scenarios
+ * - waitForPhase('combat', { timeout: 5000 }): Quick transition, should complete fast
+ * - waitForPhase('game_over', { timeout: 90000 }): Main waiting period for enemies to
+ *   traverse path and deplete lives. 90s is conservative for Stage 1 (shortest path).
+ *
+ * ### Potential Flakiness:
+ * - Enemy movement speed variations (frame-dependent)
+ * - Browser performance differences (especially in CI)
+ * - Network latency on asset loading
+ *
+ * ### Recommended Optimizations (Future Task):
+ * - Implement test mode with accelerated game speed (10x multiplier)
+ * - Use URL param ?testMode=true to enable fast-forward
+ * - Would reduce 90-120s tests to <10s
  */
 
 import { test, expect } from '@playwright/test';
@@ -32,7 +56,12 @@ test.describe('Game Over - Loss Conditions', () => {
 
 	test.describe('Lives Reaching 0', () => {
 		test('should trigger game over when all lives are lost', async ({ page }) => {
-			test.setTimeout(120000); // Allow time for enemies to reach exit
+			// TIMING: 120s test timeout allows for:
+			// - Wave spawn (3 enemies over ~15s)
+			// - Enemy traversal (Stage 1 path ~20s per enemy at normal speed)
+			// - Multiple waves if needed to drain 10 lives
+			// The 90s waitForPhase timeout is the critical wait; outer timeout provides buffer.
+			test.setTimeout(120000);
 			await startStage(page, 1);
 
 			// Verify initial lives
@@ -41,9 +70,13 @@ test.describe('Game Over - Loss Conditions', () => {
 
 			// Start wave without placing any towers - enemies will reach exit
 			await executeCommand(page, 'w');
+			// TIMING: Combat phase transition is immediate (game loop responds to :w command)
 			await waitForPhase(page, 'combat', { timeout: 5000 });
 
-			// Wait for game over (enemies reach exit and deplete lives)
+			// TIMING: This is the long wait - enemies must traverse the full path.
+			// Stage 1 has a straight horizontal path, enemies move at ~1 cell/second.
+			// With 10 cells and 3 enemies per wave, first wave completes in ~30-40s.
+			// Multiple waves may spawn to drain all 10 lives, hence 90s timeout.
 			await waitForPhase(page, 'game_over', { timeout: 90000 });
 
 			// Verify game over state
@@ -53,6 +86,7 @@ test.describe('Game Over - Loss Conditions', () => {
 		});
 
 		test('should decrement lives as enemies reach exit', async ({ page }) => {
+			// TIMING: Shorter than full game-over test since we only wait for 1 life lost
 			test.setTimeout(90000);
 			await startStage(page, 1);
 
@@ -63,7 +97,9 @@ test.describe('Game Over - Loss Conditions', () => {
 			await executeCommand(page, 'w');
 			await waitForPhase(page, 'combat', { timeout: 5000 });
 
-			// Wait for at least one life to be lost (enemies reaching exit)
+			// TIMING: Wait for first enemy to traverse the path and reach exit.
+			// Stage 1 path is ~10 cells, enemy speed ~1 cell/sec = ~10-15s for first hit.
+			// Using 45s timeout for safety margin (browser perf variance, CI overhead).
 			await waitForLives(page, initialLives - 1, { timeout: 45000 });
 
 			// Verify life was lost
@@ -72,6 +108,7 @@ test.describe('Game Over - Loss Conditions', () => {
 		});
 
 		test('should show game over message when lives reach 0', async ({ page }) => {
+			// TIMING: Same as 'trigger game over' test - full enemy traversal wait
 			test.setTimeout(120000);
 			await startStage(page, 1);
 
@@ -79,7 +116,7 @@ test.describe('Game Over - Loss Conditions', () => {
 			await executeCommand(page, 'w');
 			await waitForPhase(page, 'combat', { timeout: 5000 });
 
-			// Wait for game over
+			// TIMING: Full game-over wait (see detailed timing notes in first test)
 			await waitForPhase(page, 'game_over', { timeout: 90000 });
 
 			// Game over screen should be displayed
@@ -90,12 +127,14 @@ test.describe('Game Over - Loss Conditions', () => {
 
 	test.describe('Game Over Screen Display', () => {
 		test('should display game over phase in data attributes', async ({ page }) => {
+			// TIMING: Standard game-over scenario timing
 			test.setTimeout(120000);
 			await startStage(page, 1);
 
 			// Trigger game over by letting enemies through
 			await executeCommand(page, 'w');
 			await waitForPhase(page, 'combat', { timeout: 5000 });
+			// TIMING: Full enemy traversal to deplete all lives
 			await waitForPhase(page, 'game_over', { timeout: 90000 });
 
 			// Verify game container shows game_over phase
@@ -104,6 +143,7 @@ test.describe('Game Over - Loss Conditions', () => {
 		});
 
 		test('should track keystrokes during failed attempt', async ({ page }) => {
+			// TIMING: Standard game-over scenario with keystroke tracking
 			test.setTimeout(120000);
 			await startStage(page, 1);
 
@@ -117,6 +157,7 @@ test.describe('Game Over - Loss Conditions', () => {
 			// Start wave and lose
 			await executeCommand(page, 'w');
 			await waitForPhase(page, 'combat', { timeout: 5000 });
+			// TIMING: Full enemy traversal
 			await waitForPhase(page, 'game_over', { timeout: 90000 });
 
 			// Keystrokes should still be tracked
@@ -125,6 +166,7 @@ test.describe('Game Over - Loss Conditions', () => {
 		});
 
 		test('should show current wave at time of game over', async ({ page }) => {
+			// TIMING: Standard game-over scenario
 			test.setTimeout(120000);
 			await startStage(page, 1);
 
@@ -132,7 +174,7 @@ test.describe('Game Over - Loss Conditions', () => {
 			await executeCommand(page, 'w');
 			await waitForPhase(page, 'combat', { timeout: 5000 });
 
-			// Wait for game over
+			// TIMING: Full enemy traversal to game over
 			await waitForPhase(page, 'game_over', { timeout: 90000 });
 
 			// Should show wave 1 (failed on first wave)
@@ -143,6 +185,7 @@ test.describe('Game Over - Loss Conditions', () => {
 
 	test.describe('Score Tracking Without Progression Unlock', () => {
 		test('should NOT unlock next stage on game over', async ({ page }) => {
+			// TIMING: Standard game-over scenario with progression verification
 			test.setTimeout(120000);
 
 			// Start with only stage 1 unlocked
@@ -154,6 +197,7 @@ test.describe('Game Over - Loss Conditions', () => {
 			// Lose the game
 			await executeCommand(page, 'w');
 			await waitForPhase(page, 'combat', { timeout: 5000 });
+			// TIMING: Full enemy traversal
 			await waitForPhase(page, 'game_over', { timeout: 90000 });
 
 			// Return to menu
@@ -166,6 +210,7 @@ test.describe('Game Over - Loss Conditions', () => {
 		});
 
 		test('should NOT save score on game over', async ({ page }) => {
+			// TIMING: Standard game-over scenario
 			test.setTimeout(120000);
 
 			await clearProgressData(page);
@@ -176,6 +221,7 @@ test.describe('Game Over - Loss Conditions', () => {
 			// Lose the game
 			await executeCommand(page, 'w');
 			await waitForPhase(page, 'combat', { timeout: 5000 });
+			// TIMING: Full enemy traversal
 			await waitForPhase(page, 'game_over', { timeout: 90000 });
 
 			// Return to menu
@@ -188,6 +234,8 @@ test.describe('Game Over - Loss Conditions', () => {
 		});
 
 		test('should preserve existing progression data after game over', async ({ page }) => {
+			// TIMING: Testing on Stage 2 which has a longer L-shaped path
+			// but same timeout applies since enemies still need to drain all lives
 			test.setTimeout(120000);
 
 			// Set up with existing progress
@@ -203,6 +251,7 @@ test.describe('Game Over - Loss Conditions', () => {
 			await startStage(page, 2);
 			await executeCommand(page, 'w');
 			await waitForPhase(page, 'combat', { timeout: 5000 });
+			// TIMING: Stage 2 has a longer path than Stage 1, but 90s still sufficient
 			await waitForPhase(page, 'game_over', { timeout: 90000 });
 
 			// Return to menu
@@ -222,12 +271,14 @@ test.describe('Game Over - Loss Conditions', () => {
 
 	test.describe('Return to Menu', () => {
 		test('should return to menu with Enter key after game over', async ({ page }) => {
+			// TIMING: Game-over scenario + menu navigation (fast)
 			test.setTimeout(120000);
 			await startStage(page, 1);
 
 			// Lose the game
 			await executeCommand(page, 'w');
 			await waitForPhase(page, 'combat', { timeout: 5000 });
+			// TIMING: Primary wait - enemy traversal to game over
 			await waitForPhase(page, 'game_over', { timeout: 90000 });
 
 			// Press Enter to return to menu
@@ -243,12 +294,14 @@ test.describe('Game Over - Loss Conditions', () => {
 		});
 
 		test('should return to menu with Escape key after game over', async ({ page }) => {
+			// TIMING: Standard game-over scenario
 			test.setTimeout(120000);
 			await startStage(page, 1);
 
 			// Lose the game
 			await executeCommand(page, 'w');
 			await waitForPhase(page, 'combat', { timeout: 5000 });
+			// TIMING: Primary wait
 			await waitForPhase(page, 'game_over', { timeout: 90000 });
 
 			// Press Escape to return to menu
@@ -264,12 +317,14 @@ test.describe('Game Over - Loss Conditions', () => {
 		});
 
 		test('should ignore other keys during game over', async ({ page }) => {
+			// TIMING: Standard game-over scenario
 			test.setTimeout(120000);
 			await startStage(page, 1);
 
 			// Lose the game
 			await executeCommand(page, 'w');
 			await waitForPhase(page, 'combat', { timeout: 5000 });
+			// TIMING: Primary wait
 			await waitForPhase(page, 'game_over', { timeout: 90000 });
 
 			// Try pressing various keys that should NOT exit
@@ -291,10 +346,13 @@ test.describe('Game Over - Loss Conditions', () => {
 	});
 
 	test.describe('Game Over from :q! Command', () => {
+		// NOTE: These tests are FAST - :q! triggers instant game_over without enemy traversal
+		// No extended timeouts needed for command-triggered game over
 		test('should trigger game over with :q! force quit command', async ({ page }) => {
 			await startStage(page, 1);
 
 			// Use :q! to force quit (which sets phase to game_over)
+			// TIMING: This is instant - no waiting for enemies
 			await executeCommand(page, 'q!');
 
 			// Should be in game over state
@@ -329,6 +387,8 @@ test.describe('Game Over - Loss Conditions', () => {
 
 	test.describe('Game Over on Later Stages', () => {
 		test('should trigger game over on Stage 2 when lives reach 0', async ({ page }) => {
+			// TIMING: Stage 2 has L-shaped path (longer than Stage 1)
+			// Same timeout strategy - enemies still need to traverse and drain lives
 			test.setTimeout(120000);
 
 			await setProgressData(page, { unlockedStages: 2, scores: {} });
@@ -337,6 +397,7 @@ test.describe('Game Over - Loss Conditions', () => {
 			// Start wave without adequate defenses
 			await executeCommand(page, 'w');
 			await waitForPhase(page, 'combat', { timeout: 5000 });
+			// TIMING: Stage 2 path is longer but 90s covers worst case
 			await waitForPhase(page, 'game_over', { timeout: 90000 });
 
 			const state = await getGameState(page);
@@ -345,6 +406,7 @@ test.describe('Game Over - Loss Conditions', () => {
 		});
 
 		test('should NOT unlock Stage 3 when failing Stage 2', async ({ page }) => {
+			// TIMING: Standard game-over on Stage 2
 			test.setTimeout(120000);
 
 			await clearProgressData(page);
@@ -354,6 +416,7 @@ test.describe('Game Over - Loss Conditions', () => {
 			// Lose the game
 			await executeCommand(page, 'w');
 			await waitForPhase(page, 'combat', { timeout: 5000 });
+			// TIMING: Full enemy traversal on Stage 2's longer path
 			await waitForPhase(page, 'game_over', { timeout: 90000 });
 
 			// Return to menu

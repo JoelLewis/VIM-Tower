@@ -4,6 +4,26 @@
  * Tests tower placement in insert mode (numbers 1-4 for different towers),
  * invalid placement rejection (on path/spawn/exit), tower selection filtering
  * by stage, gold deduction, and cursor movement in insert mode.
+ *
+ * ## TIMING CONSIDERATIONS
+ *
+ * Tower placement tests are mostly FAST - they verify input handling and
+ * state changes without running combat. The one exception is the "place tower
+ * during combat" test which starts a wave.
+ *
+ * ### Timeout Strategy:
+ * - waitForMode(): 2000ms - mode transitions are instant
+ * - waitForGameReady(): Default 10s - game init
+ * - waitForPhase('combat'): 5000ms - only in combat-placement test
+ *
+ * ### No Extended Timeouts:
+ * - Tower placement is synchronous with key input
+ * - Gold deduction happens immediately
+ * - Invalid placement rejection is instant
+ *
+ * ### Potential Flakiness:
+ * - expect().toPass() in combat placement test uses 5s timeout with polling
+ *   This is a known pattern for waiting on async state updates
  */
 
 import { test, expect } from '@playwright/test';

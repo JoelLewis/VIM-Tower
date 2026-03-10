@@ -3,6 +3,22 @@
  *
  * Tests stage selection with j/k/Enter, locked stage prevention,
  * progression display, and navigation back from game with Escape.
+ *
+ * ## TIMING CONSIDERATIONS
+ *
+ * Menu navigation tests are FAST - they test UI interactions without combat.
+ *
+ * ### Timeout Strategy:
+ * - waitForMenuReady(): Default 10s - menu loads quickly
+ * - waitForGameReady(): 5000ms - game initialization
+ * - page.waitForURL(): Uses Playwright defaults
+ * - page.waitForTimeout(300): Only used for locked stage tests
+ *   (verifying navigation does NOT occur)
+ *
+ * ### Potential Flakiness:
+ * - page.waitForTimeout(300) in locked stage tests is a "wait for nothing to happen"
+ *   pattern - if navigation is slow, this could false-negative. However, 300ms is
+ *   sufficient since menu->game navigation completes in <100ms typically.
  */
 
 import { test, expect } from '@playwright/test';

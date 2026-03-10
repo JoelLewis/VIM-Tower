@@ -8,6 +8,38 @@
  * - Tank enemies (Stage 4)
  * - Progressive difficulty
  * - localStorage persistence of unlockedStages and scores
+ *
+ * ## TIMING CONSIDERATIONS
+ *
+ * These are the LONGEST running tests in the suite. Full stage playthroughs require:
+ * 1. Multiple waves (4-6 per stage)
+ * 2. Each wave spawns enemies over time
+ * 3. Combat phase waits for all enemies to be defeated OR reach exit
+ * 4. Wave transition delays between waves
+ *
+ * ### Timeout Strategy by Stage:
+ * - Stage 2 (4 waves): test.setTimeout(180000) = 3 minutes
+ * - Stage 3 (5 waves): test.setTimeout(240000) = 4 minutes
+ * - Stage 4 (6 waves): test.setTimeout(300000) = 5 minutes
+ *
+ * ### Per-Wave Timeouts:
+ * - waitForPhase('combat', { timeout: 5000 }): Immediate transition
+ * - waitForPhase('wave_complete', { timeout: 45000-60000 }): Enemy defeat time
+ *   - 45s for early waves with fewer/weaker enemies
+ *   - 60s for later stages with more enemies
+ *   - 90s for Stage 4 waves 3+ with tank enemies
+ * - waitForPhase('planning', { timeout: 5000 }): Quick UI transition
+ * - waitForPhase('stage_complete', { timeout: 45000-120000 }): Final wave
+ *   - Stage 4 final wave needs 120s due to multiple tanks
+ *
+ * ### Flakiness Patterns:
+ * - Tower placement timing (50ms key delay helps)
+ * - Combat frame rate variations in CI
+ * - Stage 4 tank enemies require longer timeouts
+ *
+ * ### Recommended Optimizations (Future Task):
+ * - Implement testMode with 10x game speed
+ * - Would reduce 3-5 minute tests to 20-30 seconds
  */
 
 import { test, expect } from '@playwright/test';
@@ -77,6 +109,7 @@ test.describe('Stage 2: The L-Turn', () => {
 	});
 
 	test.describe('Multi-Wave Combat', () => {
+		// NOTE: Single-wave tests are faster than full playthrough tests
 		test('should track wave progression correctly', async ({ page }) => {
 			await startStage(page, 2);
 
@@ -102,10 +135,13 @@ test.describe('Stage 2: The L-Turn', () => {
 
 			// Start wave
 			await executeCommand(page, 'w');
+			// TIMING: Combat starts immediately after :w command
 			await waitForPhase(page, 'combat', { timeout: 5000 });
 
-			// Wait for wave completion
+			// TIMING: Wave 1 on Stage 2 has 4 walkers. With proper tower placement,
+			// enemies should be defeated in 20-30s. 45s timeout provides safety margin.
 			await waitForPhase(page, 'wave_complete', { timeout: 45000 });
+			// TIMING: UI transition to planning phase is instant
 			await waitForPhase(page, 'planning', { timeout: 5000 });
 
 			const state = await getGameState(page);
@@ -115,7 +151,10 @@ test.describe('Stage 2: The L-Turn', () => {
 
 	test.describe('Full Stage 2 Playthrough', () => {
 		test('should complete all 4 waves and reach victory', async ({ page }) => {
-			test.setTimeout(180000); // 3 minutes for full stage
+			// TIMING: Full Stage 2 playthrough (4 waves)
+			// Each wave: ~30-45s combat + ~5s transitions = ~40-50s per wave
+			// Total: ~3 minutes with safety margin
+			test.setTimeout(180000);
 			await startStage(page, 2);
 
 			// Place towers along the L-path corners for maximum coverage
@@ -141,15 +180,19 @@ test.describe('Stage 2: The L-Turn', () => {
 
 			await exitInsertMode(page);
 
-			// Complete all 4 waves
+			// TIMING: Wave loop - each iteration waits for combat completion
+			// Waves 1-3: wait for wave_complete (enemies defeated)
+			// Wave 4: wait for stage_complete (final wave victory)
 			for (let wave = 1; wave <= 4; wave++) {
 				await executeCommand(page, 'w');
 				await waitForPhase(page, 'combat', { timeout: 5000 });
 
 				if (wave < 4) {
+					// TIMING: 45s per wave - towers should defeat all enemies
 					await waitForPhase(page, 'wave_complete', { timeout: 45000 });
 					await waitForPhase(page, 'planning', { timeout: 5000 });
 				} else {
+					// TIMING: Final wave triggers stage_complete instead of wave_complete
 					await waitForPhase(page, 'stage_complete', { timeout: 45000 });
 				}
 			}
@@ -159,6 +202,7 @@ test.describe('Stage 2: The L-Turn', () => {
 		});
 
 		test('should unlock Stage 3 after completion', async ({ page }) => {
+			// TIMING: Same as full playthrough
 			test.setTimeout(180000);
 			await startStage(page, 2);
 
@@ -265,6 +309,7 @@ test.describe('Stage 3: Serpentine', () => {
 
 			await executeCommand(page, 'w');
 			await waitForPhase(page, 'combat', { timeout: 5000 });
+			// TIMING: Stage 3 serpentine path is longer, but wave 1 is still quick
 			await waitForPhase(page, 'wave_complete', { timeout: 45000 });
 
 			const state = await getGameState(page);
@@ -274,7 +319,11 @@ test.describe('Stage 3: Serpentine', () => {
 
 	test.describe('Full Stage 3 Playthrough', () => {
 		test('should complete all 5 waves and reach victory', async ({ page }) => {
-			test.setTimeout(240000); // 4 minutes for full stage
+			// TIMING: Full Stage 3 playthrough (5 waves)
+			// Serpentine path is longer than Stage 2's L-path
+			// Later waves have runners (faster enemies)
+			// 60s per wave timeout accounts for this
+			test.setTimeout(240000);
 			await startStage(page, 3);
 
 			// Place towers at key points along the serpentine
@@ -303,15 +352,18 @@ test.describe('Stage 3: Serpentine', () => {
 
 			await exitInsertMode(page);
 
-			// Complete all 5 waves
+			// TIMING: Wave loop for Stage 3
+			// Using 60s timeout per wave due to longer serpentine path
 			for (let wave = 1; wave <= 5; wave++) {
 				await executeCommand(page, 'w');
 				await waitForPhase(page, 'combat', { timeout: 5000 });
 
 				if (wave < 5) {
+					// TIMING: 60s allows for serpentine path traversal + combat
 					await waitForPhase(page, 'wave_complete', { timeout: 60000 });
 					await waitForPhase(page, 'planning', { timeout: 5000 });
 				} else {
+					// TIMING: Final wave
 					await waitForPhase(page, 'stage_complete', { timeout: 60000 });
 				}
 			}
@@ -321,6 +373,7 @@ test.describe('Stage 3: Serpentine', () => {
 		});
 
 		test('should unlock Stage 4 after completion', async ({ page }) => {
+			// TIMING: Same as full playthrough
 			test.setTimeout(240000);
 			await startStage(page, 3);
 
@@ -406,6 +459,8 @@ test.describe('Stage 4: The Gauntlet', () => {
 	});
 
 	test.describe('Tank Enemies', () => {
+		// NOTE: Stage 4 introduces tank enemies (high HP, slow movement)
+		// Tanks require significantly more damage to defeat, extending combat time
 		test('should have 6 waves including tanks', async ({ page }) => {
 			await startStage(page, 4);
 
@@ -427,9 +482,10 @@ test.describe('Stage 4: The Gauntlet', () => {
 			await placeTower(page, 4); // Lightning
 			await exitInsertMode(page);
 
-			// Complete wave 1
+			// Complete wave 1 (no tanks yet)
 			await executeCommand(page, 'w');
 			await waitForPhase(page, 'combat', { timeout: 5000 });
+			// TIMING: Early Stage 4 waves (1-2) don't have tanks, standard timing
 			await waitForPhase(page, 'wave_complete', { timeout: 45000 });
 
 			const state = await getGameState(page);
@@ -455,7 +511,13 @@ test.describe('Stage 4: The Gauntlet', () => {
 
 	test.describe('Full Stage 4 Playthrough', () => {
 		test('should complete all 6 waves and reach victory', async ({ page }) => {
-			test.setTimeout(300000); // 5 minutes for hardest stage
+			// TIMING: Full Stage 4 playthrough (6 waves, includes tanks)
+			// This is the LONGEST test in the suite
+			// Waves 1-2: Standard enemies (~60s each)
+			// Waves 3-6: Include tank enemies (high HP) (~90s each)
+			// Final wave: Multiple tanks (~120s)
+			// Total: ~5 minutes with safety margin
+			test.setTimeout(300000);
 			await startStage(page, 4);
 
 			// Place strong tower combinations at corners of the zigzag path
@@ -489,18 +551,23 @@ test.describe('Stage 4: The Gauntlet', () => {
 
 			await exitInsertMode(page);
 
-			// Complete all 6 waves (includes tank waves)
+			// TIMING: Wave loop for Stage 4 with dynamic timeouts
+			// Waves 1-2: Standard enemies (60s)
+			// Waves 3-5: Tank enemies appear (90s - tanks have 3x HP)
+			// Wave 6: Final wave with multiple tanks (120s)
 			for (let wave = 1; wave <= 6; wave++) {
 				await executeCommand(page, 'w');
 				await waitForPhase(page, 'combat', { timeout: 5000 });
 
 				if (wave < 6) {
-					// Longer timeout for later waves with tanks
+					// TIMING: Adaptive timeout based on wave difficulty
+					// Waves 3+ have tanks which require significantly more damage
 					const timeout = wave >= 3 ? 90000 : 60000;
 					await waitForPhase(page, 'wave_complete', { timeout });
 					await waitForPhase(page, 'planning', { timeout: 5000 });
 				} else {
-					// Final wave with many tanks
+					// TIMING: Final wave is the hardest - multiple tanks
+					// 120s allows for worst-case tower DPS scenarios
 					await waitForPhase(page, 'stage_complete', { timeout: 120000 });
 				}
 			}
@@ -510,6 +577,7 @@ test.describe('Stage 4: The Gauntlet', () => {
 		});
 
 		test('should save score with rating after completion', async ({ page }) => {
+			// TIMING: Same as full Stage 4 playthrough
 			test.setTimeout(300000);
 			await startStage(page, 4);
 
@@ -563,6 +631,8 @@ test.describe('Stage 4: The Gauntlet', () => {
 });
 
 test.describe('localStorage Persistence', () => {
+	// These tests verify localStorage persists across page reloads
+	// They include full stage playthroughs so have extended timeouts
 	test.beforeEach(async ({ page }) => {
 		await page.goto('/');
 		await clearProgressData(page);
@@ -572,7 +642,7 @@ test.describe('localStorage Persistence', () => {
 		// Set up with stage 2 unlocked
 		await setProgressData(page, { unlockedStages: 2, scores: {} });
 
-		// Start stage 2 and complete it
+		// TIMING: Full Stage 2 playthrough
 		test.setTimeout(180000);
 		await startStage(page, 2);
 
@@ -624,7 +694,7 @@ test.describe('localStorage Persistence', () => {
 		// Set up with stage 2 unlocked
 		await setProgressData(page, { unlockedStages: 2, scores: {} });
 
-		// Complete stage 2
+		// TIMING: Full Stage 2 playthrough
 		test.setTimeout(180000);
 		await startStage(page, 2);
 
@@ -682,7 +752,7 @@ test.describe('localStorage Persistence', () => {
 			}
 		});
 
-		// Complete stage 3
+		// TIMING: Full Stage 3 playthrough (5 waves)
 		test.setTimeout(240000);
 		await startStage(page, 3);
 
@@ -736,7 +806,7 @@ test.describe('localStorage Persistence', () => {
 			}
 		});
 
-		// Replay stage 2 with fewer keystrokes
+		// TIMING: Full Stage 2 playthrough (replay)
 		test.setTimeout(180000);
 		await startStage(page, 2);
 
