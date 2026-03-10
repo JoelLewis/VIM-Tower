@@ -1,0 +1,5 @@
+# Skip in CI environment
+[ -n "$CI" ] && exit 0
+
+# Run smoke tests before push to catch major regressions
+pnpm test:e2e:smoke
