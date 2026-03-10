@@ -1,15 +1,22 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const isCI = !!process.env.CI;
+
 export default defineConfig({
 	testDir: './tests/e2e',
 	fullyParallel: true,
-	forbidOnly: !!process.env.CI,
-	retries: process.env.CI ? 2 : 0,
-	workers: process.env.CI ? 1 : undefined,
-	reporter: 'html',
+	forbidOnly: isCI,
+	retries: isCI ? 2 : 0,
+	workers: isCI ? 1 : undefined,
+	reporter: isCI
+		? [
+				['github'],
+				['html', { outputFolder: 'playwright-report', open: 'never' }]
+			]
+		: [['html', { outputFolder: 'playwright-report', open: 'on-failure' }]],
 	use: {
 		baseURL: 'http://localhost:4173',
-		trace: 'on-first-retry'
+		trace: 'retain-on-failure'
 	},
 	projects: [
 		{
