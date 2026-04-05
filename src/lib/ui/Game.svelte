@@ -118,7 +118,7 @@
 				}
 
 				// Sync state for E2E test data attributes
-				syncState();
+				if (testMode) syncState();
 
 				// Render every frame regardless of pause (for UI responsiveness)
 				const buf = renderGame(game, layout);

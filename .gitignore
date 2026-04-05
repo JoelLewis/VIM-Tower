@@ -16,3 +16,7 @@ build/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Local config
+package-lock.json
+.claude/settings.local.json
