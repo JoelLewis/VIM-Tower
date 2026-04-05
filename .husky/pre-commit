@@ -1,0 +1,2 @@
+# Run smoke tests before commit
+pnpm run test:e2e:smoke

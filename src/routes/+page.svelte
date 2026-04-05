@@ -22,6 +22,10 @@
 	const MENU_ROWS = 30;
 	const GLYPH_SIZE = 16;
 
+	// Reactive state for E2E test data attributes
+	let menuSelectedIndex: number = 0;
+	let menuUnlockedStages: number = 1;
+
 	onMount(() => {
 		let cleanup: (() => void) | undefined;
 
@@ -40,6 +44,10 @@
 		const progress = loadProgress();
 
 		let selectedIndex = 0;
+
+		// Sync initial state for E2E test data attributes
+		menuSelectedIndex = selectedIndex;
+		menuUnlockedStages = progress.unlockedStages;
 
 		function render() {
 			const buf = createCellBuffer(MENU_COLS, MENU_ROWS);
@@ -69,6 +77,8 @@
 					break;
 				}
 			}
+			// Sync state for E2E test data attributes
+			menuSelectedIndex = selectedIndex;
 			render();
 		}
 
@@ -160,7 +170,12 @@
 	<title>:wq! — VIM Tower Defense</title>
 </svelte:head>
 
-<div id="menu-container">
+<div
+	id="menu-container"
+	data-testid="menu-container"
+	data-selected-index={menuSelectedIndex}
+	data-unlocked-stages={menuUnlockedStages}
+>
 	<canvas bind:this={canvas}></canvas>
 </div>
 
