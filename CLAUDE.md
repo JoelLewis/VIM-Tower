@@ -9,7 +9,7 @@ Browser-based tower defense game that teaches VIM keybindings through gameplay. 
 - **Rendering:** HTML5 Canvas with CP437 bitmap font tileset (16x16 glyphs)
 - **Testing:** Vitest
 - **Package Manager:** pnpm
-- **Deployment:** Cloudflare Pages (static)
+- **Deployment:** Cloudflare Workers static assets (`wrangler.jsonc`)
 
 ## Architecture
 
@@ -41,7 +41,7 @@ All game rendering happens on a single `<canvas>`. SvelteKit provides routing an
 - `pnpm lint` — Run ESLint
 - `pnpm format` — Run Prettier
 - `pnpm check` — Svelte type checking
-- Deploy: Cloudflare Pages Git integration (build `pnpm build`, output `build`). Manual: `npx wrangler pages deploy build`
+- Deploy: Cloudflare Workers Builds (build `pnpm build`, deploy `npx wrangler deploy`). Manual: `pnpm build && npx wrangler deploy`
 
 ## Stage Balance (MVP Playtested)
 
@@ -56,7 +56,7 @@ All 4 stages completable with 10/10 lives. Balance is slightly easy — appropri
 
 ## Gotchas
 
-- **SPA routing:** The `/play` route uses query params (`?stage=1`). It requires `prerender = false` in `+page.ts` and `fallback: '200.html'` in the static adapter config.
+- **SPA routing:** The `/play` route uses query params (`?stage=1`). Its `+page.ts` sets `prerender = true` and `ssr = false`, so the build has a real `play.html` shell. Without it, Cloudflare falls back to the menu's `index.html` and `/play` shows the menu.
 - **Layout minimum size:** `screen-layout.ts` enforces `MIN_CONTENT_COLS=40` and `MIN_CONTENT_ROWS=8` so the header, build menu, message line and sidebar fit even on small grids (Stage 1 is only 10x7).
 - **E2E test mode:** `?testMode=true` runs the game at 10x speed. It only works on localhost. Game state is always mirrored to `data-*` attributes on the game container for Playwright.
 - **`:q` vs `:q!`:** `:q` shows VIM's "No write since last change" error and stays in the game. `:q!` shows the quit screen; Enter returns to the menu.

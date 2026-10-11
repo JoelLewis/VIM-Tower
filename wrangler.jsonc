@@ -1,6 +1,11 @@
 {
-	// VIM Tower Defense — Cloudflare Pages static deployment
+	// VIM Tower Defense — static site served by Cloudflare Workers static assets.
+	// Build with `pnpm build`, deploy with `npx wrangler deploy`.
 	"name": "vim-tower",
-	"compatibility_date": "2025-01-01",
-	"pages_build_output_dir": "build"
+	"compatibility_date": "2026-09-01",
+	"assets": {
+		"directory": "./build",
+		// Unknown paths fall back to the menu (index.html)
+		"not_found_handling": "single-page-application"
+	}
 }
