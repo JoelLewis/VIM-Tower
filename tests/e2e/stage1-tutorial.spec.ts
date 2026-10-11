@@ -14,7 +14,7 @@
  *
  * ### Timeout Strategy:
  * - waitForPhase('combat', { timeout: 5000 }): Immediate transition
- * - waitForPhase('wave_complete', { timeout: 30000 }): Stage 1 waves are quick
+ * - waitForWaveComplete(page, wave, 3, { timeout: 30000 }): Stage 1 waves are quick
  *   - 3 walker enemies per wave
  *   - Short horizontal path (~10 cells)
  *   - With towers, waves complete in 15-25s
@@ -29,6 +29,7 @@
 import { test, expect } from '@playwright/test';
 import {
 	waitForPhase,
+	waitForWaveComplete,
 	waitForMode,
 	getGameState,
 	pressKey,
@@ -136,7 +137,7 @@ test.describe('Stage 1 Tutorial Playthrough', () => {
 	});
 
 	test.describe('Wave Completion', () => {
-		test('should transition to wave_complete after all enemies defeated', async ({ page }) => {
+		test('should advance to the next wave after all enemies defeated', async ({ page }) => {
 			await startStage(page, 1);
 
 			// Place multiple towers for reliable wave completion
@@ -161,10 +162,12 @@ test.describe('Stage 1 Tutorial Playthrough', () => {
 			// TIMING: Wave 1 spawns 3 walker enemies over ~10s
 			// With 3 arrow towers, enemies are defeated in ~15-25s total
 			// 30s timeout provides comfortable safety margin
-			await waitForPhase(page, 'wave_complete', { timeout: 30000 });
+			// wave_complete lasts a single frame, then the game returns to planning
+			await waitForWaveComplete(page, 1, 3, { timeout: 30000 });
+			await waitForPhase(page, 'planning', { timeout: 5000 });
 
 			const state = await getGameState(page);
-			expect(state?.phase).toBe('wave_complete');
+			expect(state?.wave).toBe(2);
 		});
 
 		test('should transition to planning phase for next wave', async ({ page }) => {
@@ -185,9 +188,9 @@ test.describe('Stage 1 Tutorial Playthrough', () => {
 			await executeCommand(page, 'w');
 			await waitForPhase(page, 'combat', { timeout: 5000 });
 			// TIMING: Single wave completion
-			await waitForPhase(page, 'wave_complete', { timeout: 30000 });
+			await waitForWaveComplete(page, 1, 3, { timeout: 30000 });
 
-			// TIMING: wave_complete -> planning transition is automatic and instant
+			// TIMING: wave_complete -> planning transition happens on the next frame
 			await waitForPhase(page, 'planning', { timeout: 5000 });
 
 			const state = await getGameState(page);
@@ -196,6 +199,8 @@ test.describe('Stage 1 Tutorial Playthrough', () => {
 		});
 
 		test('should track wave count correctly through multiple waves', async ({ page }) => {
+			// Full real-time playthrough; give it 3x the default timeout
+			test.slow();
 			await startStage(page, 1);
 
 			// Place several towers for reliable completion
@@ -218,7 +223,7 @@ test.describe('Stage 1 Tutorial Playthrough', () => {
 
 			await executeCommand(page, 'w');
 			await waitForPhase(page, 'combat', { timeout: 5000 });
-			await waitForPhase(page, 'wave_complete', { timeout: 30000 });
+			await waitForWaveComplete(page, 1, 3, { timeout: 30000 });
 			await waitForPhase(page, 'planning', { timeout: 5000 });
 
 			// Wave 2
@@ -227,7 +232,7 @@ test.describe('Stage 1 Tutorial Playthrough', () => {
 
 			await executeCommand(page, 'w');
 			await waitForPhase(page, 'combat', { timeout: 5000 });
-			await waitForPhase(page, 'wave_complete', { timeout: 30000 });
+			await waitForWaveComplete(page, 2, 3, { timeout: 30000 });
 			await waitForPhase(page, 'planning', { timeout: 5000 });
 
 			// Wave 3
@@ -238,12 +243,14 @@ test.describe('Stage 1 Tutorial Playthrough', () => {
 
 	test.describe('Victory and Rating Calculation', () => {
 		test('should reach stage_complete after all waves', async ({ page }) => {
+			// Full real-time playthrough; give it 3x the default timeout
+			test.slow();
 			await startStage(page, 1);
 
 			// Place towers strategically for reliable completion
 			// Row above path (y=2)
 			await moveCursor(page, 'l', 2);
-			await moveCursor(page, 'k');
+			await moveCursor(page, 'j', 2); // Row 2, next to the path on row 3
 			await enterInsertMode(page);
 			await placeTower(page, 1);
 			await moveCursor(page, 'l', 2);
@@ -260,7 +267,7 @@ test.describe('Stage 1 Tutorial Playthrough', () => {
 				await waitForPhase(page, 'combat', { timeout: 5000 });
 
 				if (wave < 3) {
-					await waitForPhase(page, 'wave_complete', { timeout: 30000 });
+					await waitForWaveComplete(page, wave, 3, { timeout: 30000 });
 					await waitForPhase(page, 'planning', { timeout: 5000 });
 				} else {
 					// Last wave goes to stage_complete
@@ -295,7 +302,7 @@ test.describe('Stage 1 Tutorial Playthrough', () => {
 
 			// Place sufficient towers
 			await moveCursor(page, 'l', 2);
-			await moveCursor(page, 'k');
+			await moveCursor(page, 'j', 2); // Row 2, next to the path on row 3
 			await enterInsertMode(page);
 			await placeTower(page, 1);
 			await moveCursor(page, 'l', 2);
@@ -309,18 +316,20 @@ test.describe('Stage 1 Tutorial Playthrough', () => {
 			// Complete wave 1
 			await executeCommand(page, 'w');
 			await waitForPhase(page, 'combat', { timeout: 5000 });
-			await waitForPhase(page, 'wave_complete', { timeout: 30000 });
+			await waitForWaveComplete(page, 1, 3, { timeout: 30000 });
 
 			const state = await getGameState(page);
 			expect(state?.lives).toBe(10);
 		});
 
 		test('should save progression and unlock Stage 2 after victory', async ({ page }) => {
+			// Full real-time playthrough; give it 3x the default timeout
+			test.slow();
 			await startStage(page, 1);
 
 			// Place sufficient towers
 			await moveCursor(page, 'l', 2);
-			await moveCursor(page, 'k');
+			await moveCursor(page, 'j', 2); // Row 2, next to the path on row 3
 			await enterInsertMode(page);
 			await placeTower(page, 1);
 			await moveCursor(page, 'l', 2);
@@ -337,7 +346,7 @@ test.describe('Stage 1 Tutorial Playthrough', () => {
 				await waitForPhase(page, 'combat', { timeout: 5000 });
 
 				if (wave < 3) {
-					await waitForPhase(page, 'wave_complete', { timeout: 30000 });
+					await waitForWaveComplete(page, wave, 3, { timeout: 30000 });
 					await waitForPhase(page, 'planning', { timeout: 5000 });
 				} else {
 					await waitForPhase(page, 'stage_complete', { timeout: 30000 });
@@ -359,11 +368,13 @@ test.describe('Stage 1 Tutorial Playthrough', () => {
 		});
 
 		test('should calculate rating based on keystroke count vs par', async ({ page }) => {
+			// Full real-time playthrough; give it 3x the default timeout
+			test.slow();
 			await startStage(page, 1);
 
 			// Place towers efficiently
 			await moveCursor(page, 'l', 4);
-			await moveCursor(page, 'k');
+			await moveCursor(page, 'j', 2); // Row 2, next to the path on row 3
 			await enterInsertMode(page);
 			await placeTower(page, 1);
 			await moveCursor(page, 'l', 2);
@@ -376,7 +387,7 @@ test.describe('Stage 1 Tutorial Playthrough', () => {
 				await waitForPhase(page, 'combat', { timeout: 5000 });
 
 				if (wave < 3) {
-					await waitForPhase(page, 'wave_complete', { timeout: 30000 });
+					await waitForWaveComplete(page, wave, 3, { timeout: 30000 });
 					await waitForPhase(page, 'planning', { timeout: 5000 });
 				} else {
 					await waitForPhase(page, 'stage_complete', { timeout: 30000 });
@@ -398,6 +409,8 @@ test.describe('Stage 1 Tutorial Playthrough', () => {
 
 	test.describe('Complete Stage 1 Playthrough', () => {
 		test('should complete full Stage 1 from start to victory', async ({ page }) => {
+			// Full real-time playthrough; give it 3x the default timeout
+			test.slow();
 			// Start Stage 1
 			await startStage(page, 1);
 
@@ -412,7 +425,7 @@ test.describe('Stage 1 Tutorial Playthrough', () => {
 
 			// Step 1: Follow tutorial - move cursor
 			await moveCursor(page, 'l', 4);
-			await moveCursor(page, 'k');
+			await moveCursor(page, 'j', 2); // Row 2, next to the path on row 3
 
 			// Step 2: Enter insert mode
 			await enterInsertMode(page);
@@ -439,7 +452,7 @@ test.describe('Stage 1 Tutorial Playthrough', () => {
 			await waitForPhase(page, 'combat', { timeout: 5000 });
 
 			// Wait for wave 1 to complete
-			await waitForPhase(page, 'wave_complete', { timeout: 30000 });
+			await waitForWaveComplete(page, 1, 3, { timeout: 30000 });
 			await waitForPhase(page, 'planning', { timeout: 5000 });
 
 			// Verify wave 2
@@ -449,7 +462,7 @@ test.describe('Stage 1 Tutorial Playthrough', () => {
 			// Start wave 2
 			await executeCommand(page, 'w');
 			await waitForPhase(page, 'combat', { timeout: 5000 });
-			await waitForPhase(page, 'wave_complete', { timeout: 30000 });
+			await waitForWaveComplete(page, 2, 3, { timeout: 30000 });
 			await waitForPhase(page, 'planning', { timeout: 5000 });
 
 			// Verify wave 3
@@ -554,13 +567,14 @@ test.describe('Stage 1 Tutorial Playthrough', () => {
 			await waitForPhase(page, 'combat', { timeout: 5000 });
 		});
 
-		test('should quit game with :q command', async ({ page }) => {
+		test('should quit game with :q! command', async ({ page }) => {
 			await startStage(page, 1);
 
-			// Use :q to quit
-			await executeCommand(page, 'q');
+			// :q! force quits; Enter returns to the menu
+			await executeCommand(page, 'q!');
+			await waitForPhase(page, 'game_over', { timeout: 5000 });
+			await pressKey(page, 'Enter');
 
-			// Should navigate to menu
 			await page.waitForURL('/');
 		});
 	});

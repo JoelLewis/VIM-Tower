@@ -117,8 +117,9 @@
 					updateGame(game, dt);
 				}
 
-				// Sync state for E2E test data attributes
-				if (testMode) syncState();
+				// Sync state for E2E test data attributes (Svelte only touches
+				// the DOM when a value changes, so this is cheap)
+				syncState();
 
 				// Render every frame regardless of pause (for UI responsiveness)
 				const buf = renderGame(game, layout);

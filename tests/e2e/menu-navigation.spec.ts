@@ -25,6 +25,8 @@ import { test, expect } from '@playwright/test';
 import {
 	waitForMenuReady,
 	waitForGameReady,
+	waitForPhase,
+	getGameState,
 	getMenuState,
 	pressKey,
 	setProgressData,
@@ -268,20 +270,20 @@ test.describe('Menu Navigation', () => {
 	});
 
 	test.describe('Navigation Back from Game', () => {
-		test('should return to menu with :q command', async ({ page }) => {
+		test('should stay in game with :q (VIM "no write" error)', async ({ page }) => {
 			// Start stage 1
 			await pressKey(page, 'Enter');
 			await page.waitForURL(/\/play\?stage=1/);
 			await waitForGameReady(page);
 
-			// Use :q to quit
+			// :q refuses to quit, like VIM with unsaved changes
 			await pressKey(page, ':');
 			await pressKey(page, 'q');
 			await pressKey(page, 'Enter');
 
-			// Should return to menu
-			await page.waitForURL('/');
-			await waitForMenuReady(page);
+			const state = await getGameState(page);
+			expect(state?.phase).toBe('planning');
+			expect(page.url()).toMatch(/\/play\?stage=1/);
 		});
 
 		test('should return to menu with :q! command', async ({ page }) => {
@@ -289,10 +291,12 @@ test.describe('Menu Navigation', () => {
 			await page.waitForURL(/\/play\?stage=1/);
 			await waitForGameReady(page);
 
-			// Use :q! to force quit
+			// Use :q! to force quit, then Enter to leave the quit screen
 			await pressKey(page, ':');
 			await pressKey(page, 'q');
 			await pressKey(page, '!');
+			await pressKey(page, 'Enter');
+			await waitForPhase(page, 'game_over', { timeout: 5000 });
 			await pressKey(page, 'Enter');
 
 			await page.waitForURL('/');
@@ -316,9 +320,12 @@ test.describe('Menu Navigation', () => {
 			await page.waitForURL(/\/play\?stage=2/);
 			await waitForGameReady(page);
 
-			// Return to menu
+			// Return to menu with :q! then Enter
 			await pressKey(page, ':');
 			await pressKey(page, 'q');
+			await pressKey(page, '!');
+			await pressKey(page, 'Enter');
+			await waitForPhase(page, 'game_over', { timeout: 5000 });
 			await pressKey(page, 'Enter');
 
 			await page.waitForURL('/');
