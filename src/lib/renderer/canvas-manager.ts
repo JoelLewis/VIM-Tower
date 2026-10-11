@@ -4,6 +4,7 @@
  * The game renders at a fixed "native" resolution (determined by cell grid
  * dimensions × glyph size). The canvas manager scales this up by the largest
  * integer factor that fits the viewport, centering it with black letterboxing.
+ * Viewports smaller than the native size get a fractional downscale.
  */
 
 export type CanvasManager = {
@@ -72,10 +73,10 @@ function updateScale(manager: CanvasManager): void {
 	const vw = window.innerWidth;
 	const vh = window.innerHeight;
 
-	// Find the largest integer scale that fits
-	const maxScaleX = Math.floor(vw / nativeWidth);
-	const maxScaleY = Math.floor(vh / nativeHeight);
-	const scale = Math.max(1, Math.min(maxScaleX, maxScaleY));
+	// Find the largest integer scale that fits. On screens smaller than the
+	// native size (phones), shrink to fit instead so nothing is cut off.
+	const fitScale = Math.min(vw / nativeWidth, vh / nativeHeight);
+	const scale = fitScale >= 1 ? Math.floor(fitScale) : fitScale;
 
 	manager.scale = scale;
 

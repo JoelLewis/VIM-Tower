@@ -38,7 +38,7 @@ const ENEMY_COLORS: Record<string, string> = {
 };
 
 const TERRAIN_DISPLAY: Record<CellType, { char: number; fg: string; bg: string }> = {
-	empty: { char: 250, fg: colors.terrainEmpty, bg: colors.terrainEmpty }, // middle dot
+	empty: { char: 250, fg: colors.uiTextDim, bg: colors.terrainEmpty }, // middle dot
 	path: { char: 176, fg: colors.terrainPathChar, bg: colors.terrainPath }, // light shade
 	spawn: { char: 'S'.charCodeAt(0), fg: palette.white, bg: colors.terrainSpawn },
 	exit: { char: 'E'.charCodeAt(0), fg: palette.white, bg: colors.terrainExit }
@@ -47,7 +47,7 @@ const TERRAIN_DISPLAY: Record<CellType, { char: number; fg: string; bg: string }
 const MODE_DISPLAY: Record<GameMode, { text: string; color: string }> = {
 	normal: { text: 'NORMAL', color: colors.modeNormal },
 	insert: { text: '-- INSERT --', color: colors.modeInsert },
-	command: { text: ':', color: colors.modeCommand },
+	command: { text: 'COMMAND', color: colors.modeCommand },
 	visual: { text: '-- VISUAL --', color: colors.modeVisual }
 };
 
@@ -67,6 +67,7 @@ export function renderGame(game: Game, layout: ScreenLayout): CellBuffer {
 	drawBuildMenu(buf, game, layout);
 	drawSidebar(buf, game, layout);
 	drawStatusBar(buf, game, layout);
+	drawMessageLine(buf, game, layout);
 
 	// Overlay for terminal game states
 	if (game.state.phase === GAME_PHASES.gameOver) {
@@ -250,26 +251,28 @@ function drawStatusBar(buf: CellBuffer, game: Game, layout: ScreenLayout): void 
 
 	// Mode indicator (left)
 	const modeInfo = MODE_DISPLAY[game.state.mode];
-	if (game.state.mode === GAME_MODES.command) {
-		// Show command buffer
-		const cmdText = `:${game.state.commandBuffer}`;
-		writeText(buf, statusBar.x, statusBar.y, cmdText, modeInfo.color, bg);
-	} else {
-		writeText(buf, statusBar.x, statusBar.y, modeInfo.text, modeInfo.color, bg);
-	}
-
-	// Message (center)
-	if (game.state.message) {
-		const msgX = statusBar.x + 15;
-		const maxLen = statusBar.width - 30;
-		const msg = game.state.message.slice(0, maxLen);
-		writeText(buf, msgX, statusBar.y, msg, colors.uiTextBright, bg);
-	}
+	writeText(buf, statusBar.x + 1, statusBar.y, modeInfo.text, modeInfo.color, bg);
 
 	// Cursor position (right)
 	const posText = `${game.state.cursor.x},${game.state.cursor.y}`;
 	const posX = statusBar.x + statusBar.width - posText.length - 1;
 	writeText(buf, posX, statusBar.y, posText, colors.uiText, bg);
+}
+
+/** Message line below the status bar, like VIM's command line */
+function drawMessageLine(buf: CellBuffer, game: Game, layout: ScreenLayout): void {
+	const { messageLine } = layout;
+	const bg = colors.uiBackground;
+	const maxLen = messageLine.width - 2;
+
+	if (game.state.mode === GAME_MODES.command) {
+		const cmdText = `:${game.state.commandBuffer}`.slice(-maxLen);
+		writeText(buf, messageLine.x + 1, messageLine.y, cmdText, MODE_DISPLAY.command.color, bg);
+	} else if (game.state.message) {
+		const msg = game.state.message.slice(0, maxLen);
+		const color = msg.startsWith('E:') ? colors.health : colors.uiTextBright;
+		writeText(buf, messageLine.x + 1, messageLine.y, msg, color, bg);
+	}
 }
 
 function drawOverlay(buf: CellBuffer, layout: ScreenLayout, title: string, titleColor: string, subtitle: string): void {

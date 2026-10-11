@@ -41,6 +41,8 @@ export type ScreenLayout = {
 	readonly sidebar: CellRect;
 	readonly buildMenu: CellRect;
 	readonly statusBar: CellRect;
+	/** Full-width line below the status bar for messages and the command line */
+	readonly messageLine: CellRect;
 };
 
 const GLYPH_SIZE = 16;
@@ -48,31 +50,38 @@ const SIDEBAR_WIDTH = 22;
 const HEADER_HEIGHT = 1;
 const BUILD_MENU_HEIGHT = 1;
 const STATUS_BAR_HEIGHT = 1;
+const MESSAGE_LINE_HEIGHT = 1;
 
 // Border cells (box-drawing chars occupy 1 cell each)
 const BORDER = 1;
 
-// Minimum content columns to ensure header/build menu have enough space
-const MIN_CONTENT_COLS = 32;
+// Minimum content columns so the header, build menu and message line have
+// enough space. 40 cols gives a 62-char message line, enough for every message.
+const MIN_CONTENT_COLS = 40;
+
+// Minimum grid-area rows so the sidebar command list fits inside its border
+const MIN_CONTENT_ROWS = 8;
 
 /**
  * Create a screen layout for a given game grid size.
  * The game grid size varies per stage (e.g., 10x7 for Stage 1, 20x14 for Stage 4).
- * Small grids are padded to MIN_CONTENT_COLS so the header and build menu fit.
+ * Small grids are padded to MIN_CONTENT_COLS x MIN_CONTENT_ROWS so the
+ * header, build menu and sidebar fit.
  */
 export function createScreenLayout(gameGridCols: number, gameGridRows: number): ScreenLayout {
 	// Pad small grids so header/build menu have enough room
 	const contentCols = Math.max(gameGridCols, MIN_CONTENT_COLS);
+	const contentRows = Math.max(gameGridRows, MIN_CONTENT_ROWS);
 
 	// Content area = padded grid area + borders around it
 	const contentWidth = BORDER + contentCols + BORDER;
-	const contentHeight = BORDER + HEADER_HEIGHT + BORDER + gameGridRows + BORDER + BUILD_MENU_HEIGHT + BORDER;
+	const contentHeight = BORDER + HEADER_HEIGHT + BORDER + contentRows + BORDER + BUILD_MENU_HEIGHT + BORDER;
 
 	// Sidebar sits to the right of the content area
 	const totalCols = contentWidth + SIDEBAR_WIDTH;
 
-	// Status bar spans the full width below everything
-	const totalRows = contentHeight + STATUS_BAR_HEIGHT;
+	// Status bar and message line span the full width below everything
+	const totalRows = contentHeight + STATUS_BAR_HEIGHT + MESSAGE_LINE_HEIGHT;
 
 	const header: CellRect = {
 		x: BORDER,
@@ -97,7 +106,7 @@ export function createScreenLayout(gameGridCols: number, gameGridRows: number): 
 
 	const buildMenu: CellRect = {
 		x: BORDER,
-		y: BORDER + HEADER_HEIGHT + BORDER + gameGridRows + BORDER,
+		y: BORDER + HEADER_HEIGHT + BORDER + contentRows + BORDER,
 		width: contentCols,
 		height: BUILD_MENU_HEIGHT
 	};
@@ -109,6 +118,13 @@ export function createScreenLayout(gameGridCols: number, gameGridRows: number): 
 		height: STATUS_BAR_HEIGHT
 	};
 
+	const messageLine: CellRect = {
+		x: 0,
+		y: contentHeight + STATUS_BAR_HEIGHT,
+		width: totalCols,
+		height: MESSAGE_LINE_HEIGHT
+	};
+
 	return {
 		totalCols,
 		totalRows,
@@ -118,7 +134,8 @@ export function createScreenLayout(gameGridCols: number, gameGridRows: number): 
 		gameGrid,
 		sidebar,
 		buildMenu,
-		statusBar
+		statusBar,
+		messageLine
 	};
 }
 
