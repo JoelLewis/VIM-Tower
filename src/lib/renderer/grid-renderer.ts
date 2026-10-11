@@ -73,8 +73,15 @@ export function writeText(
 	bg: string
 ): void {
 	for (let i = 0; i < text.length; i++) {
-		setCell(buf, x + i, y, text.charCodeAt(i), fg, bg);
+		setCell(buf, x + i, y, toTilesetChar(text.charCodeAt(i)), fg, bg);
 	}
+}
+
+/** Map characters outside the 256-glyph tileset (e.g. em dash) to ASCII */
+function toTilesetChar(code: number): number {
+	if (code < 256) return code;
+	if (code === 0x2013 || code === 0x2014) return '-'.charCodeAt(0);
+	return '?'.charCodeAt(0);
 }
 
 /** Fill a rectangular region with a single character */
@@ -161,11 +168,11 @@ export function drawChrome(buf: CellBuffer, layout: ScreenLayout): void {
 	const fg = colors.uiBorder;
 	const bg = colors.uiBackground;
 
-	const { header, gameGrid, buildMenu, sidebar } = layout;
+	const { header, buildMenu, sidebar } = layout;
 
 	// Outer box around the left content area (header + grid + build menu)
 	const contentWidth = sidebar.x; // content area ends where sidebar begins
-	const contentHeight = 1 + header.height + 1 + gameGrid.height + 1 + buildMenu.height + 1;
+	const contentHeight = sidebar.height; // sidebar spans the full content height
 	drawBox(buf, 0, 0, contentWidth, contentHeight, fg, bg);
 
 	// Horizontal divider below header

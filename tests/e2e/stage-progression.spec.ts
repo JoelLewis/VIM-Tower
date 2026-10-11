@@ -255,7 +255,7 @@ test.describe('Stage 3: Serpentine', () => {
 
 			// Move to an empty cell
 			await moveCursor(page, 'l', 5);
-			await moveCursor(page, 'j');
+			// Stay on row 0: row 1 is the enemy path
 
 			await enterInsertMode(page);
 			const beforeGold = (await getGameState(page))?.gold ?? 0;
@@ -416,7 +416,7 @@ test.describe('Stage 4: The Gauntlet', () => {
 
 			// Move to an empty cell
 			await moveCursor(page, 'l', 5);
-			await moveCursor(page, 'j');
+			// Stay on row 0: row 1 is the enemy path
 
 			await enterInsertMode(page);
 			const beforeGold = (await getGameState(page))?.gold ?? 0;

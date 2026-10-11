@@ -16,7 +16,7 @@
  * ### Timeout Strategy:
  * - waitForMode(): 2000ms default - mode changes are instant
  * - waitForPhase('combat'): 5000ms - immediate transition
- * - waitForPhase('wave_complete'): 30000ms - for combat tests
+ * - waitForWaveComplete(): 30000ms - for combat tests
  * - waitForPhase('stage_complete'): 30000ms - for victory tests
  *
  * ### No Flakiness Expected:
@@ -28,6 +28,7 @@
 import { test, expect } from '@playwright/test';
 import {
 	waitForPhase,
+	waitForWaveComplete,
 	waitForMode,
 	getGameState,
 	pressKey,
@@ -546,8 +547,10 @@ test.describe('VIM Keybindings', () => {
 			await startStage(page, 1);
 
 			await executeCommand(page, 'q!');
+			await waitForPhase(page, 'game_over', { timeout: 5000 });
 
-			// Should navigate to menu
+			// Enter leaves the quit screen and returns to the menu
+			await pressKey(page, 'Enter');
 			await page.waitForURL('/');
 			await waitForMenuReady(page);
 		});
@@ -804,11 +807,13 @@ test.describe('VIM Keybindings', () => {
 		// NOTE: These tests complete full Stage 1 to reach stage_complete phase
 		// They are slower than pure keybinding tests but verify end-game input handling
 		test('should return to menu with Enter on stage complete', async ({ page }) => {
+			// Full real-time playthrough; give it 3x the default timeout
+			test.slow();
 			await startStage(page, 1);
 
 			// Place towers
 			await moveCursor(page, 'l', 2);
-			await moveCursor(page, 'k');
+			await moveCursor(page, 'j', 2); // Row 2, next to the path on row 3
 			await enterInsertMode(page);
 			await placeTower(page, 1);
 			await moveCursor(page, 'l', 2);
@@ -826,7 +831,7 @@ test.describe('VIM Keybindings', () => {
 
 				if (wave < 3) {
 					// TIMING: Stage 1 waves are quick with proper towers
-					await waitForPhase(page, 'wave_complete', { timeout: 30000 });
+					await waitForWaveComplete(page, wave, 3, { timeout: 30000 });
 					await waitForPhase(page, 'planning', { timeout: 5000 });
 				} else {
 					await waitForPhase(page, 'stage_complete', { timeout: 30000 });
@@ -840,11 +845,13 @@ test.describe('VIM Keybindings', () => {
 		});
 
 		test('should return to menu with Escape on stage complete', async ({ page }) => {
+			// Full real-time playthrough; give it 3x the default timeout
+			test.slow();
 			await startStage(page, 1);
 
 			// Place towers
 			await moveCursor(page, 'l', 2);
-			await moveCursor(page, 'k');
+			await moveCursor(page, 'j', 2); // Row 2, next to the path on row 3
 			await enterInsertMode(page);
 			await placeTower(page, 1);
 			await moveCursor(page, 'l', 2);
@@ -861,7 +868,7 @@ test.describe('VIM Keybindings', () => {
 				await waitForPhase(page, 'combat', { timeout: 5000 });
 
 				if (wave < 3) {
-					await waitForPhase(page, 'wave_complete', { timeout: 30000 });
+					await waitForWaveComplete(page, wave, 3, { timeout: 30000 });
 					await waitForPhase(page, 'planning', { timeout: 5000 });
 				} else {
 					await waitForPhase(page, 'stage_complete', { timeout: 30000 });

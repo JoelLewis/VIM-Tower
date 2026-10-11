@@ -108,7 +108,7 @@ test.describe('Tower Placement', () => {
 
 			// Move to empty cell
 			await moveCursor(page, 'l', 1);
-			await moveCursor(page, 'j');
+			// Stay on row 0: row 1 is the enemy path
 
 			// Enter insert mode and place frost tower
 			await enterInsertMode(page);
@@ -252,7 +252,7 @@ test.describe('Tower Placement', () => {
 
 			// Move to empty cell
 			await moveCursor(page, 'l', 1);
-			await moveCursor(page, 'j');
+			// Stay on row 0: row 1 is the enemy path
 			await enterInsertMode(page);
 
 			// Try placing Lightning (4) - should fail
@@ -463,7 +463,7 @@ test.describe('Tower Placement', () => {
 			const initialGold = (await getGameState(page))?.gold ?? 300;
 
 			await moveCursor(page, 'l', 1);
-			await moveCursor(page, 'j');
+			// Stay on row 0: row 1 is the enemy path
 			await enterInsertMode(page);
 			await pressKey(page, '3');
 

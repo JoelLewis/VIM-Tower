@@ -15,6 +15,7 @@
 	import { ALL_STAGES } from '$lib/stages/stage-data.js';
 	import { loadProgress } from '$lib/stages/progression.js';
 	import type { ProgressData } from '$lib/stages/progression.js';
+	import { FEEDBACK_URL } from '$lib/feedback.js';
 
 	let canvas: HTMLCanvasElement;
 
@@ -43,6 +44,9 @@
 		const cm = createCanvasManager(canvas, MENU_COLS * GLYPH_SIZE, MENU_ROWS * GLYPH_SIZE);
 		const progress = loadProgress();
 
+		// Phones and tablets without a mouse usually have no keyboard either
+		const touchOnly = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+
 		let selectedIndex = 0;
 
 		// Sync initial state for E2E test data attributes
@@ -51,7 +55,7 @@
 
 		function render() {
 			const buf = createCellBuffer(MENU_COLS, MENU_ROWS);
-			drawMenu(buf, tileset, progress, selectedIndex);
+			drawMenu(buf, tileset, progress, selectedIndex, touchOnly);
 			renderBuffer(cm.ctx, tileset, buf);
 		}
 
@@ -76,6 +80,9 @@
 					}
 					break;
 				}
+				case 'f':
+					window.open(FEEDBACK_URL, '_blank', 'noopener');
+					break;
 			}
 			// Sync state for E2E test data attributes
 			menuSelectedIndex = selectedIndex;
@@ -91,7 +98,13 @@
 		};
 	}
 
-	function drawMenu(buf: CellBuffer, _tileset: Tileset, progress: ProgressData, selectedIndex: number): void {
+	function drawMenu(
+		buf: CellBuffer,
+		_tileset: Tileset,
+		progress: ProgressData,
+		selectedIndex: number,
+		touchOnly: boolean
+	): void {
 		// Title
 		const title = [
 			' __        __   _ ',
@@ -160,6 +173,13 @@
 		writeText(buf, boxX + 6, controlsY, 'navigate', colors.uiText, colors.uiBackground);
 		writeText(buf, boxX + 18, controlsY, 'Enter', colors.modeNormal, colors.uiBackground);
 		writeText(buf, boxX + 24, controlsY, 'select', colors.uiText, colors.uiBackground);
+		writeText(buf, boxX + 33, controlsY, 'f', colors.modeNormal, colors.uiBackground);
+		writeText(buf, boxX + 35, controlsY, 'feedback', colors.uiText, colors.uiBackground);
+
+		if (touchOnly) {
+			const notice = 'This game needs a keyboard. Play on a computer.';
+			writeText(buf, Math.floor((MENU_COLS - notice.length) / 2), controlsY + 2, notice, colors.health, colors.uiBackground);
+		}
 
 		// Version
 		writeText(buf, 1, MENU_ROWS - 1, 'v0.1.0 MVP', colors.uiTextDim, colors.uiBackground);
