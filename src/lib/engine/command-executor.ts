@@ -163,11 +163,11 @@ function executeExCommand(command: string, state: GameState): string {
 			}
 			return 'E: Already in combat';
 		case 'save':
-			return 'Layout saved';
+			return ':save is not in this version yet';
 		case 'help':
-			return 'Use h/j/k/l to move, i to place towers, :w to start wave';
+			return 'h/j/k/l move, i insert, 1-4 tower, Esc, :w wave';
 		case 'map':
-			return 'Command reference toggled';
+			return ':map is not in this version yet';
 		case '':
 			return '';
 		default:
