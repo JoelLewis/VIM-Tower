@@ -38,6 +38,7 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
 		message: '',
 		selectedTowerType: TOWER_TYPES.arrow,
 		availableTowers: [TOWER_TYPES.arrow, TOWER_TYPES.cannon, TOWER_TYPES.frost, TOWER_TYPES.lightning],
+		helpOpen: false,
 		...overrides
 	};
 }
@@ -203,6 +204,39 @@ describe('Command Executor — Mode Transitions', () => {
 		expect(state.mode).toBe('insert');
 	});
 
+	it('i inserts at the cursor without moving it', () => {
+		state.cursor = { x: 3, y: 1 };
+		executeCommand({ type: 'enter_insert_mode', variant: 'i' }, state, grid);
+		expect(state.cursor).toEqual({ x: 3, y: 1 });
+	});
+
+	it('a moves one cell right before inserting', () => {
+		state.cursor = { x: 3, y: 1 };
+		executeCommand({ type: 'enter_insert_mode', variant: 'a' }, state, grid);
+		expect(state.cursor).toEqual({ x: 4, y: 1 });
+		expect(state.mode).toBe('insert');
+	});
+
+	it('o moves one row down and O one row up before inserting', () => {
+		state.cursor = { x: 3, y: 1 };
+		executeCommand({ type: 'enter_insert_mode', variant: 'o' }, state, grid);
+		expect(state.cursor).toEqual({ x: 3, y: 2 });
+		executeCommand({ type: 'enter_insert_mode', variant: 'O' }, state, grid);
+		executeCommand({ type: 'enter_insert_mode', variant: 'O' }, state, grid);
+		expect(state.cursor).toEqual({ x: 3, y: 0 });
+	});
+
+	it('a/o/O stay inside the grid', () => {
+		state.cursor = { x: 0, y: 0 };
+		executeCommand({ type: 'enter_insert_mode', variant: 'O' }, state, grid);
+		expect(state.cursor).toEqual({ x: 0, y: 0 });
+	});
+
+	it('placing a tower remembers its type for the range preview', () => {
+		executeCommand({ type: 'place_tower', towerType: 'cannon' }, state, grid);
+		expect(state.selectedTowerType).toBe('cannon');
+	});
+
 	it('enter_normal_mode changes mode', () => {
 		state.mode = GAME_MODES.insert;
 		executeCommand({ type: 'enter_normal_mode' }, state, grid);
@@ -247,9 +281,10 @@ describe('Command Executor — Ex Commands', () => {
 		expect(state.phase).toBe('game_over');
 	});
 
-	it(':help returns help message', () => {
+	it(':help opens the help screen', () => {
 		const msg = executeCommand({ type: 'execute_command', command: 'help' }, state, grid);
 		expect(msg).toContain('h/j/k/l');
+		expect(state.helpOpen).toBe(true);
 	});
 
 	it('unknown command returns error', () => {

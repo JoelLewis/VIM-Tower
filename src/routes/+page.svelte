@@ -47,7 +47,7 @@
 		// Phones and tablets without a mouse usually have no keyboard either
 		const touchOnly = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
 
-		let selectedIndex = 0;
+		let selectedIndex = defaultSelection(progress);
 
 		// Sync initial state for E2E test data attributes
 		menuSelectedIndex = selectedIndex;
@@ -96,6 +96,15 @@
 			window.removeEventListener('keydown', onKeyDown);
 			cm.destroy();
 		};
+	}
+
+	/** Start on the first unlocked stage not yet beaten, so a win leads to the next stage */
+	function defaultSelection(progress: ProgressData): number {
+		const unlocked = Math.min(progress.unlockedStages, ALL_STAGES.length);
+		for (let i = 0; i < unlocked; i++) {
+			if (!progress.scores[ALL_STAGES[i].id]?.completed) return i;
+		}
+		return unlocked - 1;
 	}
 
 	function drawMenu(

@@ -255,3 +255,75 @@ describe('getPhase', () => {
 		expect(getPhase(game)).toBe(GAME_PHASES.planning);
 	});
 });
+
+describe('player feedback', () => {
+	it('explains a key that does nothing in NORMAL mode', () => {
+		const game = createGame(testStage);
+		const msg = handleKeyPress(game, 'z');
+		expect(msg).toContain('E: z is not a command');
+		expect(game.state.keystrokeCount).toBe(0);
+	});
+
+	it('explains a key that does nothing in INSERT mode', () => {
+		const game = createGame(testStage);
+		handleKeyPress(game, 'i');
+		expect(handleKeyPress(game, 'q')).toContain('INSERT mode');
+	});
+
+	it('does not flag the start of a longer command', () => {
+		const game = createGame(testStage);
+		expect(handleKeyPress(game, '3')).not.toContain('E:');
+		expect(handleKeyPress(game, 'g')).not.toContain('E:');
+	});
+
+	it(':help opens a screen that any key closes without acting', () => {
+		const game = createGame(testStage);
+		for (const key of [':', 'h', 'e', 'l', 'p', 'Enter']) handleKeyPress(game, key);
+		expect(game.state.helpOpen).toBe(true);
+		handleKeyPress(game, 'j');
+		expect(game.state.helpOpen).toBe(false);
+		expect(game.state.cursor.y).toBe(0);
+	});
+
+	it('pauses combat while help is open', () => {
+		const game = createGame(testStage);
+		for (const key of [':', 'w', 'Enter', ':', 'h', 'Enter']) handleKeyPress(game, key);
+		for (let i = 0; i < 200; i++) updateGame(game, 0.05);
+		expect(game.state.lives).toBe(10);
+		expect(game.state.phase).toBe(GAME_PHASES.combat);
+	});
+
+	it('shows an error over the tutorial and does not advance it on failure', () => {
+		const game = createGame({
+			...testStage,
+			tutorialSteps: [
+				{
+					message: 'Press 1 to place a tower.',
+					requiredAction: 'place_tower',
+					highlightCell: null
+				},
+				{ message: 'Now press Esc.', requiredAction: 'enter_normal_mode', highlightCell: null }
+			]
+		});
+		// Move onto the path (row 2) and try to build there
+		handleKeyPress(game, 'j');
+		handleKeyPress(game, 'j');
+		handleKeyPress(game, 'i');
+		const msg = handleKeyPress(game, '1');
+		expect(msg).toMatch(/^E:/);
+		expect(game.tutorial.currentStep).toBe(0);
+
+		// A valid placement advances the tutorial
+		handleKeyPress(game, 'k');
+		expect(handleKeyPress(game, '1')).toBe('Now press Esc.');
+	});
+
+	it('flashes the exit and warns when an enemy gets through', () => {
+		const game = createGame(testStage);
+		for (const key of [':', 'w', 'Enter']) handleKeyPress(game, key);
+		for (let i = 0; i < 200 && game.state.lives === 10; i++) updateGame(game, 0.05);
+		expect(game.state.lives).toBeLessThan(10);
+		expect(game.state.message).toContain('got through');
+		expect(game.effects.some((e) => e.kind === 'leak')).toBe(true);
+	});
+});

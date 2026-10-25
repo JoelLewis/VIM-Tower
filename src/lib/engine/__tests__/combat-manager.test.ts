@@ -54,6 +54,18 @@ describe('Combat Manager — Arrow Tower (single target)', () => {
 		expect(result.damageDealt).toBeGreaterThan(0);
 	});
 
+	it('records a shot from the tower to the target for the renderer', () => {
+		const grid = createGrid(makeTestLayout());
+		placeTower(grid, 3, 1, TOWER_TYPES.arrow);
+		const enemies = createEnemyManager(testPath);
+		const walker = spawnEnemy(enemies, ENEMY_TYPES.walker);
+		walker.pathIndex = 3;
+		walker.pathProgress = 0;
+
+		const result = updateCombat(grid, enemies, 1.0);
+		expect(result.shots).toEqual([{ towerType: 'arrow', fromX: 3, fromY: 1, toX: 3, toY: 2 }]);
+	});
+
 	it('arrow tower does not fire when on cooldown', () => {
 		const grid = createGrid(makeTestLayout());
 		placeTower(grid, 3, 1, TOWER_TYPES.arrow);

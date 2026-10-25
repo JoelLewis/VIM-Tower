@@ -40,8 +40,7 @@ export function executeCommand(command: Command, state: GameState, grid: Grid): 
 		case 'quick_sell_tower':
 			return executeQuickSell(state, grid);
 		case 'enter_insert_mode':
-			state.mode = GAME_MODES.insert;
-			return '-- INSERT --';
+			return executeEnterInsert(command, state, grid);
 		case 'enter_normal_mode':
 			state.mode = GAME_MODES.normal;
 			return '';
@@ -71,6 +70,27 @@ function executeMoveCommand(
 	const newY = state.cursor.y + command.dy * command.count;
 	state.cursor.x = clamp(newX, 0, grid.width - 1);
 	state.cursor.y = clamp(newY, 0, grid.height - 1);
+	return '';
+}
+
+/** i inserts at the cursor; a, o and O first move right, down or up (like VIM) */
+const INSERT_OFFSETS: Record<'i' | 'a' | 'o' | 'O', { dx: number; dy: number }> = {
+	i: { dx: 0, dy: 0 },
+	a: { dx: 1, dy: 0 },
+	o: { dx: 0, dy: 1 },
+	O: { dx: 0, dy: -1 }
+};
+
+function executeEnterInsert(
+	command: Extract<Command, { type: 'enter_insert_mode' }>,
+	state: GameState,
+	grid: Grid
+): string {
+	const { dx, dy } = INSERT_OFFSETS[command.variant];
+	state.cursor.x = clamp(state.cursor.x + dx, 0, grid.width - 1);
+	state.cursor.y = clamp(state.cursor.y + dy, 0, grid.height - 1);
+	state.mode = GAME_MODES.insert;
+	// The status bar already shows -- INSERT --
 	return '';
 }
 
@@ -134,6 +154,7 @@ function executePlaceTower(
 	const result = placeTower(grid, state.cursor.x, state.cursor.y, command.towerType);
 	if (result.success) {
 		state.gold -= cost;
+		state.selectedTowerType = command.towerType;
 		return `Placed ${command.towerType} (${cost}g)`;
 	}
 	return `E: ${!result.success ? result.error : 'Unknown error'}`;
@@ -164,8 +185,10 @@ function executeExCommand(command: string, state: GameState): string {
 			return 'E: Already in combat';
 		case 'save':
 			return ':save is not in this version yet';
+		case 'h':
 		case 'help':
-			return 'h/j/k/l move, i insert, 1-4 tower, Esc, :w wave';
+			state.helpOpen = true;
+			return 'Help: h/j/k/l move, i insert, 1-4 tower, :w wave. Any key closes.';
 		case 'map':
 			return ':map is not in this version yet';
 		case '':
