@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createVimParser, processKey, getMode, getCommandBuffer } from '../vim-parser.js';
+import {
+	createVimParser,
+	processKey,
+	getMode,
+	getCommandBuffer,
+	getPendingKeys
+} from '../vim-parser.js';
 function press(parser: ReturnType<typeof createVimParser>, ...keys: string[]): void {
 	keys.forEach((k) => processKey(parser, k));
 }
@@ -501,5 +507,27 @@ describe('VIM Parser — Count Prefix Edge Cases', () => {
 		press(parser, '3');
 		const cmd = processKey(parser, 'w');
 		expect(cmd).toEqual({ type: 'jump_next_tower' });
+	});
+});
+
+describe('VIM Parser — Pending keys (showcmd)', () => {
+	it('shows a count while it is being typed', () => {
+		const parser = createVimParser();
+		processKey(parser, '1');
+		processKey(parser, '2');
+		expect(getPendingKeys(parser)).toBe('12');
+	});
+
+	it('shows a pending g', () => {
+		const parser = createVimParser();
+		processKey(parser, 'g');
+		expect(getPendingKeys(parser)).toBe('g');
+	});
+
+	it('clears once the command completes', () => {
+		const parser = createVimParser();
+		processKey(parser, '5');
+		processKey(parser, 'l');
+		expect(getPendingKeys(parser)).toBe('');
 	});
 });

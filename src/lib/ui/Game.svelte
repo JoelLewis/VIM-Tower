@@ -39,6 +39,10 @@
 	let gameTotalWaves: number = 0;
 	let gameKeystrokes: number = 0;
 
+	// Text for screen readers (the canvas itself can't be read)
+	let liveMode: string = 'NORMAL mode';
+	let liveMessage: string = '';
+
 	onMount(() => {
 		let rafId: number;
 		let lastTime = 0;
@@ -101,6 +105,8 @@
 				gameWave = game.state.currentWave;
 				gameTotalWaves = game.state.totalWaves;
 				gameKeystrokes = game.state.keystrokeCount;
+				liveMode = `${game.state.mode.toUpperCase()} mode, ${game.state.phase.replace('_', ' ')}`;
+				liveMessage = game.state.helpOpen ? 'Help is open. Press any key to close.' : game.state.message;
 			}
 
 			// Game loop
@@ -166,7 +172,11 @@
 	data-total-waves={gameTotalWaves}
 	data-keystrokes={gameKeystrokes}
 >
-	<canvas bind:this={canvasEl}></canvas>
+	<canvas bind:this={canvasEl} aria-hidden="true"></canvas>
+	<div class="sr-only" aria-live="polite">
+		<p>{liveMode}</p>
+		<p>{liveMessage}</p>
+	</div>
 </div>
 
 <style>
@@ -183,5 +193,14 @@
 	canvas {
 		image-rendering: pixelated;
 		image-rendering: crisp-edges;
+	}
+
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
 	}
 </style>

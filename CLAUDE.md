@@ -60,6 +60,8 @@ All 4 stages completable with 10/10 lives. Balance is slightly easy — appropri
 - **Layout minimum size:** `screen-layout.ts` enforces `MIN_CONTENT_COLS=40` and `MIN_CONTENT_ROWS=8` so the header, build menu, message line and sidebar fit even on small grids (Stage 1 is only 10x7).
 - **E2E test mode:** `?testMode=true` runs the game at 10x speed. It only works on localhost. Game state is always mirrored to `data-*` attributes on the game container for Playwright.
 - **`:q` vs `:q!`:** `:q` shows VIM's "No write since last change" error and stays in the game. `:q!` shows the quit screen; Enter returns to the menu.
+- **Canvas scaling:** `canvas-manager.ts` scales in half steps (1, 1.5, 2...). Glyphs are 8x8 bitmaps drawn at 2x, so 1.5x stays crisp. Keep anything you draw aligned to whole cells.
+- **Missing glyphs:** The font8x8 tileset lacks some CP437 codes (e.g. 254 `■`). Run `node scripts/generate-tileset.mjs` to list them before using a new glyph.
 - **Svelte navigation:** Use `window.location.href` instead of `goto()` to avoid the `svelte/no-navigation-without-resolve` lint rule (simpler for a static site).
 
 ## Design References

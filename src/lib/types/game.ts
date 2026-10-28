@@ -99,6 +99,20 @@ export type Command =
 	| { type: 'execute_command'; command: string }
 	| { type: 'cancel_command' };
 
+// ─── Combat Effects (short-lived visual feedback) ───────────
+
+export type CombatEffect =
+	| {
+			readonly kind: 'shot';
+			readonly towerType: TowerType;
+			readonly fromX: number;
+			readonly fromY: number;
+			readonly toX: number;
+			readonly toY: number;
+			ttl: number;
+	  }
+	| { readonly kind: 'leak'; readonly x: number; readonly y: number; ttl: number };
+
 // ─── Cursor ──────────────────────────────────────────────────
 
 export type Cursor = {
@@ -122,4 +136,6 @@ export type GameState = {
 	message: string;
 	selectedTowerType: TowerType;
 	availableTowers: readonly TowerType[];
+	/** True while the :help screen is open */
+	helpOpen: boolean;
 };

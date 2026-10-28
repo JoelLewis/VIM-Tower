@@ -58,7 +58,8 @@ export const colors = {
 	enemyWalker: palette.green,
 	enemyRunner: palette.yellow,
 	enemyTank: palette.red,
-	enemyDamaged: palette.darkRed,
+	// Bright so it stays readable on the brown path
+	enemyDamaged: palette.magenta,
 
 	// Cursor
 	cursorNormal: palette.green,

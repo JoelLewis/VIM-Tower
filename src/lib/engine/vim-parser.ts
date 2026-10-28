@@ -36,6 +36,12 @@ export function getCommandBuffer(parser: VimParser): string {
 	return parser.commandBuffer;
 }
 
+/** Keys typed so far for an unfinished command (count and/or g), like VIM's showcmd */
+export function getPendingKeys(parser: VimParser): string {
+	const count = parser.countBuffer > 0 ? String(parser.countBuffer) : '';
+	return count + (parser.pendingKey ?? '');
+}
+
 /** Reset internal parsing state (count, pending key) without changing mode */
 function resetParsing(parser: VimParser): void {
 	parser.countBuffer = 0;
